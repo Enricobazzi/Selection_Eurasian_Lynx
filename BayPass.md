@@ -35,6 +35,9 @@ In order to generate the Allele Count file I will first have to divide my VCF wi
 The script to perform this step can be found at Baypass_executables/Allele_Count_generation.sh and was launched as such
 
 ```
+screen -S allelecounts
+script allelecounts_baypass.log
+
 ./Allele_Count_generation.sh \
 /home/ebazzicalupo/BayPass/VCF/ll_perspecies.trimmed_filtered1.ann_wout_no_po_ba_no_fixed_max_2alleles_min_0.02.vcf \
 /home/ebazzicalupo/BayPass/AlleleCounts
