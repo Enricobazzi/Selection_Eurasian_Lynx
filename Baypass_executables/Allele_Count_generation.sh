@@ -29,7 +29,7 @@ popARRAY=($(grep "#CHROM" "$INVCF" | tr '\t' '\n' | grep "c_ll" | cut -d"_" -f3 
 OUTdir="$2"
 
 # Reference Genome:
-REF=/mnt/lustre/scratch/home/csic/ebd/jg2/test/Felis_catus_Ref/Felis_catus.Felis_catus_9.0.dna.toplevel.fa
+REF=/home/GRUPOS/grupolince/reference_genomes/lynx_pardinus_genome/lp23.fa
 
 ###################################################
 ## Divide all individuals VCF in Population VCFs ##
@@ -55,9 +55,8 @@ for i in ${popARRAY[@]}
 
     echo "counting $i alleles..."
 
-  # Extract allele counts and write file
-    grep -v "#" $OUTdir/${i}.vcf | cut -d';' -f1,3 | \
-    grep -o -E 'AC=[[:digit:]]{1,3};AN=[[:digit:]]{1,3}' | \
+  # Extract allele counts and write file (IMPORTANT - check VCF format for column selection)
+    grep -v "#" $OUTdir/${i}.vcf | cut -d';' -f2,4 | \
     sed 's/AC=//g' | sed 's/;AN=/ /g' | awk -F' ' 'BEGIN { OFS = " " } {print $2-$1,$1}' \
     > $OUTdir/${i}.allelecounts
 
