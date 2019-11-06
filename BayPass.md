@@ -41,5 +41,49 @@ script allelecounts_baypass.log
 ./Allele_Count_generation.sh \
 /home/ebazzicalupo/BayPass/VCF/ll_perspecies.trimmed_filtered1.ann_wout_no_po_ba_no_fixed_max_2alleles_min_0.02.vcf \
 /home/ebazzicalupo/BayPass/AlleleCounts
+```
+
+## CORE Model
+
+Now I will run BayPass with the generated allele count data using the CORE model with no Co-Variate data.
+
+```
+screen -S baypass_CORE
+script baypass_CORE.log
+
+# Define working directory:
+WD=/home/ebazzicalupo/BayPass
+
+# Run BayPass
+g_baypass -npop 10 -gfile $WD/AlleleCounts/all.allelecounts -outprefix $WD/OutPut/CORE
+
+```
+The results under the CORE model can be analyzed in R on my laptop. The results directory (OutPut) was copied in the project directory
+
+```{R}
+
+# Load Libraries and Functions #
+require(corrplot) ; require(ape)
+library(geigen)
+source("/Users/enricobazzicalupo/Desktop/Pruebas_Baypass/utils/baypass_utils.R")
+
+# Upload estimate of omega #
+omega=as.matrix(read.table("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/OutPut/CORE_mat_omega.out"))
+pop.names=c("CR","KA","KI","LA","OG","TO","TU","UR","VL","YA")
+dimnames(omega)=list(pop.names,pop.names)
+
+# Compute and visualize the correlation matrix #
+cor.mat=cov2cor(omega)
+corrplot(cor.mat,method="color",mar=c(2,1,2,2)+0.1,
+         main=expression("Correlation map based on"~hat(Omega)))
+# Visualize the correlation matrix as hierarchical clustering tree #
+bta14.tree=as.phylo(hclust(as.dist(1-cor.mat**2)))
+plot(bta14.tree,type="p",
+     main=expression("Hier. clust. tree based on"~hat(Omega)~"("*d[ij]*"=1-"*rho[ij]*")"))
+
+# Estimates of the XtX differentiation measures #
+anacore.snp.res=read.table("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/OutPut/CORE_summary_pi_xtx.out",h=T)
+plot(anacore.snp.res$M_XtX)
+
 
 ```
