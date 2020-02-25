@@ -32,7 +32,7 @@ filename <- read.pcadapt(path_to_file, type = "bed")
 
 # Run the pcadapt command
 # computing test statistics and p-values based on the correlations between SNPs and the first K principal components (PCs)
-x <- pcadapt(input = filename, K = 10)
+x <- pcadapt(input = filename, K = 4)
 
 # Scree plot -> Visualize in descending order the amount of variation explained by each PC
 plot(x, option = "screeplot")
