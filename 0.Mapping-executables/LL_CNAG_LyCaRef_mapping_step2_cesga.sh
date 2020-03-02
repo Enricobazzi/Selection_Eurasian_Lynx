@@ -20,7 +20,7 @@ module load picard/2.18.14
 THREADS=24
 REF=/mnt/lustre/scratch/home/csic/ebd/jg2/LL_selection/Ref_Genome_LyCa/lc4.fa
 SAMPLE=($(echo "${1}"))
-OUT=/mnt/lustre/scratch/home/csic/ebd/jg2/test/CatRef_bams
+OUT=/mnt/lustre/scratch/home/csic/ebd/jg2/LL_selection/LyCaRef_bams
 
 
 
@@ -46,7 +46,7 @@ if [[ $(wc -l < "${OUT}/${SAMPLE}.bam.list") -ge 2 ]]
   samtools sort  -@ $THREADS $OUT/${SAMPLE}_merged.bam -o $OUT/${SAMPLE}_LyCa_ref_sorted_rg.bam && rm $OUT/${SAMPLE}_merged.bam;
 
  else
-  mv $(cat ${SAMPLE}.bam.list) ${SAMPLE}_LyCa_ref_sorted_rg.bam
+  mv $(cat $OUT/${SAMPLE}.bam.list) $OUT/${SAMPLE}_LyCa_ref_sorted_rg.bam
 
 fi
 
