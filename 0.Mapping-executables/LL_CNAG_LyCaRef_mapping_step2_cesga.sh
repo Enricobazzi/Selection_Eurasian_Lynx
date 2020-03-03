@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -t 1-00:00:00
+#SBATCH -t 0-12:00:00
 #SBATCH -p thinnodes
 #SBATCH -c 24
 #SBATCH --mail-type=END
