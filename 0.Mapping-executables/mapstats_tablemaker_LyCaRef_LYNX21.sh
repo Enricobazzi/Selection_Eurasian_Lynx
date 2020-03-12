@@ -10,11 +10,9 @@
 ## Calculate and report per sample BAM stats ##
 ###############################################
 
-# This script will calculate statistics for the BAMs of the Lynx lynx samples mapped to the
-# Canada lynx reference genome. This script will be launched by another script, wich will work
-# on individual folders, extracting mapping statistics for all samples within a FASTQ folder.
-# This is because we have different samples in different fastq folders and it would be hard
-# to reconstruct where each of them are without putting it as a command when launching the script.
+# This script will calculate statistics for the BAMs of the LYNX21 samples mapped to the
+# Canada lynx reference genome. This is done separately from the rest Because
+# LYNX21 samples were trimmed and have different name pattern.
 
 # The following softwares are used:
 # SAMtools
@@ -26,9 +24,8 @@ module load gcc/6.4.0 samtools/1.8
 ###################################
 
 # The sample name is given as first command while submitting the job. The sample's
-# fastq folder is given as the second command. This way you can submit
-# each sample as a different job in a loop that goes through all.
-# A final table will be created concatenating the output from each sample
+# fastq folder is given as the second command.
+# This way you can submit each sample as a different job in a loop that goes through all.
 
 # BARCODES:
 declare -A BARCODEID
@@ -75,7 +72,7 @@ SenderID=($(for key in $(echo ${!BARCODEID[@]}); do echo -e "${key}\t${BARCODEID
 NAME="${sample}"
 
 # column 2 : total_seq --> it's the number of reads in the fastq file
-TOTAL_SEQ=($(zcat $INfastq_PATH/*"${SenderID}"*.fastq.gz | wc -l | awk '{print $1/4}'))
+TOTAL_SEQ=($(zcat $INfastq_PATH/*"${SenderID}"*_pe.fastq | wc -l | awk '{print $1/4}'))
 
 # column 3 : total_reads --> number of alignments in the BAM file
 TOTAL_READS=($(grep "in total" $BamDir_PATH/"${BamStats}" | cut -d "+" -f 1))
