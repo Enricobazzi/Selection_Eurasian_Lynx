@@ -72,7 +72,7 @@ SenderID=($(for key in $(echo ${!BARCODEID[@]}); do echo -e "${key}\t${BARCODEID
 NAME="${sample}"
 
 # column 2 : total_seq --> it's the number of reads in the fastq file
-TOTAL_SEQ=($(zcat $INfastq_PATH/*"${SenderID}"*_pe.fastq | wc -l | awk '{print $1/4}'))
+TOTAL_SEQ=($(cat $INfastq_PATH/*"${SenderID}"*_pe.fastq | wc -l | awk '{print $1/4}'))
 
 # column 3 : total_reads --> number of alignments in the BAM file
 TOTAL_READS=($(grep "in total" $BamDir_PATH/"${BamStats}" | cut -d "+" -f 1))
