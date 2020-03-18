@@ -39,7 +39,7 @@ BED=/mnt/lustre/scratch/home/csic/ebd/jg2/LL_selection/Ref_Genome_LyCa/CHR_BEDs/
 ## GATK 4.1.1.0 CombineGVCFs ##
 ###############################
 
-gatk Haplotypecaller \
+gatk HaplotypeCaller \
    -R $REF \
    $(for bam in ${INbamARRAY[@]}; do echo "-I ${bam}";done) \
    -L $BED \
