@@ -398,3 +398,69 @@ sbatching parallel_HaplotypeCaller for Super_Scaffold_2 w 9
 Submitted batch job 3813659
 sbatching parallel_HaplotypeCaller for Super_Scaffold_2 w 10
 Submitted batch job 3813660
+
+# Super_Scaffold_3
+sbatching parallel_HaplotypeCaller for Super_Scaffold_3 w 1
+Submitted batch job 3814387
+sbatching parallel_HaplotypeCaller for Super_Scaffold_3 w 2
+Submitted batch job 3814388
+sbatching parallel_HaplotypeCaller for Super_Scaffold_3 w 3
+Submitted batch job 3814389
+sbatching parallel_HaplotypeCaller for Super_Scaffold_3 w 4
+Submitted batch job 3814390
+sbatching parallel_HaplotypeCaller for Super_Scaffold_3 w 5
+Submitted batch job 3814391
+sbatching parallel_HaplotypeCaller for Super_Scaffold_3 w 6
+Submitted batch job 3814392
+sbatching parallel_HaplotypeCaller for Super_Scaffold_3 w 7
+Submitted batch job 3814393
+sbatching parallel_HaplotypeCaller for Super_Scaffold_3 w 8
+Submitted batch job 3814394
+sbatching parallel_HaplotypeCaller for Super_Scaffold_3 w 9
+Submitted batch job 3814395
+sbatching parallel_HaplotypeCaller for Super_Scaffold_3 w 10
+Submitted batch job 3814396
+
+# Super_Scaffold_4
+sbatching parallel_HaplotypeCaller for Super_Scaffold_4 w 1
+Submitted batch job 3814399
+sbatching parallel_HaplotypeCaller for Super_Scaffold_4 w 2
+Submitted batch job 3814400
+sbatching parallel_HaplotypeCaller for Super_Scaffold_4 w 3
+Submitted batch job 3814401
+sbatching parallel_HaplotypeCaller for Super_Scaffold_4 w 4
+Submitted batch job 3814402
+sbatching parallel_HaplotypeCaller for Super_Scaffold_4 w 5
+Submitted batch job 3814403
+sbatching parallel_HaplotypeCaller for Super_Scaffold_4 w 6
+Submitted batch job 3814404
+sbatching parallel_HaplotypeCaller for Super_Scaffold_4 w 7
+Submitted batch job 3814405
+sbatching parallel_HaplotypeCaller for Super_Scaffold_4 w 8
+Submitted batch job 3814406
+sbatching parallel_HaplotypeCaller for Super_Scaffold_4 w 9
+Submitted batch job 3814407
+sbatching parallel_HaplotypeCaller for Super_Scaffold_4 w 10
+Submitted batch job 3814408
+
+# Super_Scaffold_5
+sbatching parallel_HaplotypeCaller for Super_Scaffold_5 w 1
+Submitted batch job 3814410
+sbatching parallel_HaplotypeCaller for Super_Scaffold_5 w 2
+Submitted batch job 3814411
+sbatching parallel_HaplotypeCaller for Super_Scaffold_5 w 3
+Submitted batch job 3814412
+sbatching parallel_HaplotypeCaller for Super_Scaffold_5 w 4
+Submitted batch job 3814413
+sbatching parallel_HaplotypeCaller for Super_Scaffold_5 w 5
+Submitted batch job 3814414
+sbatching parallel_HaplotypeCaller for Super_Scaffold_5 w 6
+Submitted batch job 3814415
+sbatching parallel_HaplotypeCaller for Super_Scaffold_5 w 7
+Submitted batch job 3814416
+sbatching parallel_HaplotypeCaller for Super_Scaffold_5 w 8
+Submitted batch job 3814417
+sbatching parallel_HaplotypeCaller for Super_Scaffold_5 w 9
+Submitted batch job 3814418
+sbatching parallel_HaplotypeCaller for Super_Scaffold_5 w 10
+Submitted batch job 3814419
