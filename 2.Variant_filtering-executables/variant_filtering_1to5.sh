@@ -36,7 +36,7 @@
 
 # ./variant_filtering_1to5.sh <VCFfilename>
 
-module load gatk/4.1.1.4
+module load gatk/4.1.4.1
 module load bedtools
 module load bcftools
 
