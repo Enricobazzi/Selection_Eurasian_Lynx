@@ -61,7 +61,7 @@ for pop in ${popARRAY[@]}
 # (4) filter the excessively missing variants from the new VCF file of all samples
   echo "extracting missing variants from ${pop} VCF and filtering them out"
 
-  bcftools filter -i "N_SAMPLES-N_MISSING >= 4" -Ov $LUSTRE/LL_selection/LyCaRef_vcfs/${pop}_LyCa_ref.filter5.subset.vcf \
+  bcftools filter -i "N_SAMPLES-N_MISSING < 4" -Ov $LUSTRE/LL_selection/LyCaRef_vcfs/${pop}_LyCa_ref.filter5.subset.vcf \
   > $LUSTRE/LL_selection/LyCaRef_vcfs/${pop}_LyCa_ref.filter5.subset.missing.vcf
 
   bedtools subtract -a $LUSTRE/LL_selection/LyCaRef_vcfs/${1}.filter6.vcf \
