@@ -51,19 +51,18 @@ cp $LUSTRE/LL_selection/LyCaRef_vcfs/${1}.filter5.vcf $LUSTRE/LL_selection/LyCaR
 for pop in ${popARRAY[@]}
   do
 
-# (2) use the namelist file to divide the VCF by pop
+# (1) use the namelist file to divide the VCF by pop
   echo "filtering ${pop} individuals from original VCF"
   bcftools view -S $LUSTRE/LL_selection/LyCaRef_bams/${pop}.namelist -Ov \
   $LUSTRE/LL_selection/LyCaRef_vcfs/${1}.filter5.vcf \
   > $LUSTRE/LL_selection/LyCaRef_vcfs/${pop}_LyCa_ref.filter5.subset.vcf
 
-# (3) extract the excessive missingness variant with BCFtools filter and
-# (4) filter the excessively missing variants from the new VCF file of all samples
+# (2) extract the excessive missingness variant with BCFtools filter
   echo "extracting missing variants from ${pop} VCF and filtering them out"
-
   bcftools filter -i "N_SAMPLES-N_MISSING < 4" -Ov $LUSTRE/LL_selection/LyCaRef_vcfs/${pop}_LyCa_ref.filter5.subset.vcf \
   > $LUSTRE/LL_selection/LyCaRef_vcfs/${pop}_LyCa_ref.filter5.subset.missing.vcf
 
+# (3) filter the excessively missing variants from the new VCF file of all samples
   bedtools subtract -a $LUSTRE/LL_selection/LyCaRef_vcfs/${1}.filter6.vcf \
   -b $LUSTRE/LL_selection/LyCaRef_vcfs/${pop}_LyCa_ref.filter5.subset.missing.vcf -header \
   > tmp && mv tmp $LUSTRE/LL_selection/LyCaRef_vcfs/${1}.filter6.vcf
