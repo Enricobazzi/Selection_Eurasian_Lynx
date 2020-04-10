@@ -63,17 +63,17 @@ for pop in ${popARRAY[@]}
     -O $OUTdir/${pop}.depth.vcf
 
     # Minimum and Maximum depth values
-    max=$(grep ${pop} ${DPStable} | cut -d',' -f5 | cut -d'.' -f1)
-    min=$(grep ${pop} ${DPStable} | cut -d',' -f6)
+    max=$(grep -w ${pop} ${DPStable} | cut -d',' -f5 | cut -d'.' -f1)
+    min=$(grep -w ${pop} ${DPStable} | cut -d',' -f6)
     echo "Maximum depth of ${pop} is ${max}, Minimum depth is ${min}"
 
     # (2) extract the excessive missingness variant with BCFtools filter
-    echo "extracting excessively low/high depth variants from $i VCF"
+    echo "extracting excessively low/high depth variants from $pop VCF"
     bcftools filter -i "INFO/DP < ${min} || INFO/DP > ${max}" -Ov $OUTdir/${pop}.depth.vcf \
     > $OUTdir/${pop}.applydepthfilter.vcf
 
     # (3) filter the excessively missing variants from the new VCF file of all samples
-    echo "subtracting excessively low/high depth variants of $i from output VCF"
+    echo "subtracting excessively low/high depth variants of $pop from output VCF"
     bedtools subtract -a $OUTVCF \
     -b $OUTdir/${pop}.applydepthfilter.vcf -header \
     > tmp && mv tmp $OUTVCF
