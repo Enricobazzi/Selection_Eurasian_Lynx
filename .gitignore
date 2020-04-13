@@ -5,3 +5,5 @@
 .RDataTmp
 Output/
 SamTools_Depth
+plink_pca
+.DS_Store
