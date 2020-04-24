@@ -72,6 +72,19 @@ plink_1.9 --vcf $VCF --double-id --allow-extra-chr --set-missing-var-ids @:# \
 --extract ll_LyCa_ref.prune.in --geno 0.001 --remove balkans-caucasus_samplestoremove.txt \
 --threads 15 --make-bed --pca --out ll_LyCa_ref.nomiss.noba.noca
 ```
+The co-authors also want a version of the PCA with only samples from the Caucasus population.
+```
+cd ~/LL_selection/pca_plink
+
+# Get list of Caucasus samples:
+grep "ll_ca" ll_LyCa_ref.fam > caucasus_samplelist.txt
+
+VCF=~/LL_selection/LyCaRef_vcfs/ll_wholegenome_LyCa_ref.sorted.filter7.vcf
+
+plink_1.9 --vcf $VCF --double-id --allow-extra-chr --set-missing-var-ids @:# \
+--extract ll_LyCa_ref.prune.in --keep caucasus_samplelist.txt --geno 0.001 \
+--make-bed --pca --out ll_LyCa_ref.caucasus
+```
 I will copy the eigenval and eigenvec files on my laptop to process them with R:
 ```
 scp ebazzicalupo@genomics-a.ebd.csic.es:/home/ebazzicalupo/LL_selection/pca_plink/ll_LyCa_ref.eigen* Documents/Selection_Eurasian_Lynx/plink_pca/
@@ -87,6 +100,10 @@ scp ebazzicalupo@genomics-a.ebd.csic.es:/home/ebazzicalupo/LL_selection/pca_plin
 Copy eigenval and eigenvec files of the version without missing and without 3 Balkan and 3 Caucasus individuals on my laptop:
 ```
 scp ebazzicalupo@genomics-a.ebd.csic.es:/home/ebazzicalupo/LL_selection/pca_plink/ll_LyCa_ref.nomiss.noba.noca.eigen* Documents/Selection_Eurasian_Lynx/plink_pca/
+```
+Copy eigenval and eigenvec files of the version with only Caucasus samples on my laptop:
+```
+scp ebazzicalupo@genomics-a.ebd.csic.es:/home/ebazzicalupo/LL_selection/pca_plink/ll_LyCa_ref.caucasus.eigen* Documents/Selection_Eurasian_Lynx/plink_pca/
 ```
 In R the first thing to do will be to load the necessary libraries
 ```{R}
@@ -109,6 +126,9 @@ eigenval <- scan("plink_pca/ll_LyCa_ref.nomiss.eigenval")
 # no missingness - no balkan no caucasus
 pca <- read_table2("plink_pca/ll_LyCa_ref.nomiss.noba.noca.eigenvec", col_names = FALSE)
 eigenval <- scan("plink_pca/ll_LyCa_ref.nomiss.noba.noca.eigenval")
+# Caucasus only:
+pca <- read_table2("plink_pca/ll_LyCa_ref.caucasus.eigenvec", col_names = FALSE)
+eigenval <- scan("plink_pca/ll_LyCa_ref.caucasus.eigenval")
 
 
 # sort out the pca data
@@ -135,13 +155,29 @@ loc[grep("ur", pca$ind)] <- "urals"
 loc[grep("vl", pca$ind)] <- "vladivostok"
 loc[grep("ya", pca$ind)] <- "yakutia"
 
+# for caucasus only:
+loc <- rep(NA, length(pca$ind))
+loc[grep("0240", pca$ind)] <- "Lesser Caucasus"
+loc[grep("0241", pca$ind)] <- "Dagestan"
+loc[grep("0242", pca$ind)] <- "Lesser Caucasus"
+loc[grep("0243", pca$ind)] <- "Dagestan"
+loc[grep("0244", pca$ind)] <- "Dagestan"
+loc[grep("0245", pca$ind)] <- "Dagestan"
+loc[grep("0247", pca$ind)] <- "Lesser Caucasus"
+loc[grep("0248", pca$ind)] <- "Western Greater Caucasus"
+loc[grep("0252", pca$ind)] <- "Western Greater Caucasus"
+loc[grep("0254", pca$ind)] <- "Lesser Caucasus"
+loc[grep("0259", pca$ind)] <- "Dagestan"
+loc[grep("0260", pca$ind)] <- "Dagestan"
+
+
 # remake data.frame
 pca <- as.tibble(data.frame(pca, loc))
 ```
 To plot the data we first calculate the percentage of variance explained by each PC and plot them
 ```{R}
 # first convert to percentage variance explained
-pve <- data.frame(PC = 1:20, pve = eigenval/sum(eigenval)*100)
+pve <- data.frame(PC = 1:12, pve = eigenval/sum(eigenval)*100)
 # then make a plot
 a <- ggplot(pve, aes(PC, pve)) + geom_bar(stat = "identity")
 a + ylab("Percentage variance explained") + theme_light()
@@ -161,10 +197,12 @@ ggplot(pca, aes(PC1, PC2, col = loc, label=ind)) + geom_point(size = 3) +
 
 ggplotly()
 
-# plot PCA with labels - UGLY
+# plot PCA with labels
+library(ggrepel)
+
 ggplot(pca, aes(PC1, PC2, col = loc, label=ind)) + geom_point(size = 3) +
   coord_equal() + theme_light() + xlab(paste0("PC1 (", signif(pve$pve[1], 3), "%)")) +
-  ylab(paste0("PC2 (", signif(pve$pve[2], 3), "%)")) + geom_text(hjust = 1, vjust = 1)
+  ylab(paste0("PC2 (", signif(pve$pve[2], 3), "%)")) + geom_label_repel()
 ```
 3D plot - (colors missing):
 ```{R}
