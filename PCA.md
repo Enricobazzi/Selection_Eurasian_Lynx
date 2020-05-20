@@ -129,7 +129,9 @@ eigenval <- scan("plink_pca/ll_LyCa_ref.nomiss.noba.noca.eigenval")
 # Caucasus only:
 pca <- read_table2("plink_pca/ll_LyCa_ref.caucasus.eigenvec", col_names = FALSE)
 eigenval <- scan("plink_pca/ll_LyCa_ref.caucasus.eigenval")
-
+# Intergenic:
+pca <- read_table2("plink_pca/ll_intergenic_LyCa_ref.noba.eigenvec", col_names = FALSE)
+eigenval <- scan("plink_pca/ll_intergenic_LyCa_ref.noba.eigenval")
 
 # sort out the pca data
 # remove nuisance column
@@ -177,7 +179,7 @@ pca <- as.tibble(data.frame(pca, loc))
 To plot the data we first calculate the percentage of variance explained by each PC and plot them
 ```{R}
 # first convert to percentage variance explained
-pve <- data.frame(PC = 1:12, pve = eigenval/sum(eigenval)*100)
+pve <- data.frame(PC = 1:20, pve = eigenval/sum(eigenval)*100)
 # then make a plot
 a <- ggplot(pve, aes(PC, pve)) + geom_bar(stat = "identity")
 a + ylab("Percentage variance explained") + theme_light()

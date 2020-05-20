@@ -91,9 +91,9 @@ gatk SelectVariants \
   -V ${ST1out} \
   -O ${ST2out}
 
-##################################################################
-## (3) Lynx genus wide exclusive substitutions from Felis catus ##
-##################################################################
+###########################################################
+## (3) Lynx lynx wide substitutions from Lynx canadensis ##
+###########################################################
 echo "step 3"
 # Apply the filter with BCFtools view
 bcftools view -e 'INFO/AF=1.00' ${ST2out} > ${ST3out}
