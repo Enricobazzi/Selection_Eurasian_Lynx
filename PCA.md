@@ -85,6 +85,45 @@ plink_1.9 --vcf $VCF --double-id --allow-extra-chr --set-missing-var-ids @:# \
 --extract ll_LyCa_ref.prune.in --keep caucasus_samplelist.txt --geno 0.001 \
 --make-bed --pca --out ll_LyCa_ref.caucasus
 ```
+For a version of the PCA with only the samples from the Western part of the distribution:
+```
+cd ~/LL_selection/pca_plink
+
+# Get list of Western samples:
+grep -E "ll_ba|ll_cr|ll_ki|ll_la|ll_no|ll_po|ll_ur" ll_LyCa_ref.fam | grep -vE "h_ll_ba_0214|h_ll_ba_0215|c_ll_ba_0216" > western_samplelist.txt
+
+VCF=~/LL_selection/LyCaRef_vcfs/ll_wholegenome_LyCa_ref.sorted.filter7.vcf
+
+plink_1.9 --vcf $VCF --double-id --allow-extra-chr --set-missing-var-ids @:# \
+--extract ll_LyCa_ref.prune.in --keep western_samplelist.txt \
+--make-bed --pca --out ll_LyCa_ref.western
+```
+For a version of the PCA with only the samples from the Eastern part of the distribution:
+```
+cd ~/LL_selection/pca_plink
+
+# Get list of Eastern samples:
+grep -vE "ll_ba|ll_cr|ll_ki|ll_la|ll_no|ll_po|ll_ur|ll_ca" ll_LyCa_ref.fam > eastern_samplelist.txt
+
+VCF=~/LL_selection/LyCaRef_vcfs/ll_wholegenome_LyCa_ref.sorted.filter7.vcf
+
+plink_1.9 --vcf $VCF --double-id --allow-extra-chr --set-missing-var-ids @:# \
+--extract ll_LyCa_ref.prune.in --keep eastern_samplelist.txt \
+--make-bed --pca --out ll_LyCa_ref.eastern
+```
+For a version of the PCA with only the samples from the Eastern part of the distribution, but not the 2 og samples (mongolia):
+```
+cd ~/LL_selection/pca_plink
+
+# Get list of Eastern samples:
+grep -vE "ll_ba|ll_cr|ll_ki|ll_la|ll_no|ll_po|ll_ur|ll_ca|ll_og" ll_LyCa_ref.fam > eastern_noog_samplelist.txt
+
+VCF=~/LL_selection/LyCaRef_vcfs/ll_wholegenome_LyCa_ref.sorted.filter7.vcf
+
+plink_1.9 --vcf $VCF --double-id --allow-extra-chr --set-missing-var-ids @:# \
+--extract ll_LyCa_ref.prune.in --keep eastern_noog_samplelist.txt \
+--make-bed --pca --out ll_LyCa_ref.eastern.noog
+```
 I will copy the eigenval and eigenvec files on my laptop to process them with R:
 ```
 scp ebazzicalupo@genomics-a.ebd.csic.es:/home/ebazzicalupo/LL_selection/pca_plink/ll_LyCa_ref.eigen* Documents/Selection_Eurasian_Lynx/plink_pca/
@@ -104,6 +143,18 @@ scp ebazzicalupo@genomics-a.ebd.csic.es:/home/ebazzicalupo/LL_selection/pca_plin
 Copy eigenval and eigenvec files of the version with only Caucasus samples on my laptop:
 ```
 scp ebazzicalupo@genomics-a.ebd.csic.es:/home/ebazzicalupo/LL_selection/pca_plink/ll_LyCa_ref.caucasus.eigen* Documents/Selection_Eurasian_Lynx/plink_pca/
+```
+Copy eigenval and eigenvec files of the version with only Western samples on my laptop:
+```
+scp ebazzicalupo@genomics-a.ebd.csic.es:/home/ebazzicalupo/LL_selection/pca_plink/ll_LyCa_ref.western.eigen* Documents/Selection_Eurasian_Lynx/plink_pca/
+```
+Copy eigenval and eigenvec files of the version with only Eastern samples on my laptop:
+```
+scp ebazzicalupo@genomics-a.ebd.csic.es:/home/ebazzicalupo/LL_selection/pca_plink/ll_LyCa_ref.eastern.eigen* Documents/Selection_Eurasian_Lynx/plink_pca/
+```
+Copy eigenval and eigenvec files of the version with only Eastern samples without og on my laptop:
+```
+scp ebazzicalupo@genomics-a.ebd.csic.es:/home/ebazzicalupo/LL_selection/pca_plink/ll_LyCa_ref.eastern.noog.eigen* Documents/Selection_Eurasian_Lynx/plink_pca/
 ```
 In R the first thing to do will be to load the necessary libraries
 ```{R}
@@ -132,6 +183,15 @@ eigenval <- scan("plink_pca/ll_LyCa_ref.caucasus.eigenval")
 # Intergenic:
 pca <- read_table2("plink_pca/ll_intergenic_LyCa_ref.noba.eigenvec", col_names = FALSE)
 eigenval <- scan("plink_pca/ll_intergenic_LyCa_ref.noba.eigenval")
+# Western:
+pca <- read_table2("plink_pca/ll_LyCa_ref.western.eigenvec", col_names = FALSE)
+eigenval <- scan("plink_pca/ll_LyCa_ref.western.eigenval")
+# Eastern:
+pca <- read_table2("plink_pca/ll_LyCa_ref.eastern.eigenvec", col_names = FALSE)
+eigenval <- scan("plink_pca/ll_LyCa_ref.eastern.eigenval")
+# Eastern - no og:
+pca <- read_table2("plink_pca/ll_LyCa_ref.eastern.noog.eigenvec", col_names = FALSE)
+eigenval <- scan("plink_pca/ll_LyCa_ref.eastern.noog.eigenval")
 
 # sort out the pca data
 # remove nuisance column
@@ -196,6 +256,9 @@ ggplot(pca, aes(PC1, PC2, col = loc, label=ind)) + geom_point(size = 3) +
 #ggsave("PCA.noba.pdf", path = "plink_pca/", width=25,height=25,units="cm")
 #ggsave("PCA.nomiss.pdf", path = "plink_pca/", width=25,height=25,units="cm")
 #ggsave("PCA.nomiss.noba.noca.pdf", path = "plink_pca/", width=25,height=25,units="cm")
+#ggsave("PCA.western.pdf", path = "plink_pca/", width=25,height=25,units="cm")
+#ggsave("PCA.eastern.pdf", path = "plink_pca/", width=25,height=25,units="cm")
+#ggsave("PCA.eastern.noog.pdf", path = "plink_pca/", width=25,height=25,units="cm")
 
 ggplotly()
 
