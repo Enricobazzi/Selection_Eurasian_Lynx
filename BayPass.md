@@ -24,9 +24,17 @@ In order to run the software we will need:
 
 – Environmental variable files: in the form of different files with one column per population and their respective measurement for that particular covariate.
 
-The Allele Count file will have to be generated from the VCF file containing information on all the populations of interest.
+The Allele Count file will have to be generated from the VCF file containing information on all the populations of interest. Before generating the Allele Count file I will also proceed to filter out variants with MAF < 5%, to avoid introducing noise from low frequency variants.
 
 The Environmental variable files have already been generated and can be found at /home/ebazzicalupo/BayPass/Covariate_Data in the genomics-b server of EBD.
+
+## Filtering for MAF > 5%
+
+I will filter the final VCF from my variant filtering pipeline (2.Variant_filtering.md) to remove variants with a MAF of less than 5%. To do that I will use bcftools view:
+```
+bcftools view -i 'MAF>0.05' /home/ebazzicalupo/BayPass/VCF/ll_wholegenome_LyCa_ref.filter7.vcf \
+> /home/ebazzicalupo/BayPass/VCF/ll_wholegenome_LyCa_ref.filter7.maf5pc.vcf
+```
 
 ## Generating Allele Count data file
 
@@ -39,8 +47,24 @@ screen -S allelecounts
 script allelecounts_baypass.log
 
 ./Allele_Count_generation.sh \
-/home/ebazzicalupo/BayPass/VCF/ll_perspecies.trimmed_filtered1.ann_wout_no_po_ba_no_fixed_max_2alleles_min_0.02.vcf \
+/home/ebazzicalupo/BayPass/VCF/ll_wholegenome_LyCa_ref.filter7.maf5pc.vcf \
 /home/ebazzicalupo/BayPass/AlleleCounts
+```
+
+To avoid possible bias due to consecutive SNPs being non-independant observations because of Linkage Disequilibrium, I will divide my dataseta into 50 different dataset, made of one SNP every 50 (dataset1:snp1,snp51,snp101...;dataste2:snp2,snp52,snp102...;...).
+
+To obtain these datasets I used the following script:
+
+```
+# For the awk script to work I need to iterate from 0 to 49
+for n in {0..49}
+ do
+  awk -v number="$n" 'NR % 50 == 0+number' all.allelecounts > all.allelecounts.${n}
+done
+
+# But the 0 iteration actually starts from the 50th line of the file
+# so I will change the name of the file:
+mv all.allelecounts.0 all.allelecounts.50
 ```
 
 ## CORE Model
@@ -48,15 +72,10 @@ script allelecounts_baypass.log
 Now I will run BayPass with the generated allele count data using the CORE model with no Co-Variate data.
 
 ```
-screen -S baypass_CORE
-script baypass_CORE.log
-
-# Define working directory:
-WD=/home/ebazzicalupo/BayPass
-
-# Run BayPass
-g_baypass -npop 10 -gfile $WD/AlleleCounts/all.allelecounts -outprefix $WD/OutPut/CORE
-
+for n in {1..50}
+ do
+  screen -dmS core_${n}  sh -c "path/to/baypass_core.sh ${n}; exec /bin/bash"
+done
 ```
 The results under the CORE model can be analyzed in R on my laptop. The results directory (OutPut) was copied in the project directory
 

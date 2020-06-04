@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ##############################
 ## Generating Allele Counts ##
 ##############################
@@ -22,53 +24,64 @@
 # Input VCF
 INVCF="$1"
 
-# Array of Populations of input VCF
-popARRAY=($(grep "#CHROM" "$INVCF" | tr '\t' '\n' | grep "c_ll" | cut -d"_" -f3 | sort -u))
+# Array of Populations of input VCF - remove unwanted populations (ba, og, no, po and cr)
+# also change "ka" and "to" populations to Mongolia "mo"
+popARRAY=($(grep -m1 "#CHROM" ${INVCF} | tr '\t' '\n' | grep "c_ll" | cut -d"_" -f3 | sort -u | grep -vE "ba|og|no|po|cr" | sed 's/ka/mo/' | sed 's/to/mo/' | sort -u))
 
 # Output Directiory
 OUTdir="$2"
 
 # Reference Genome:
-REF=/home/GRUPOS/grupolince/reference_genomes/lynx_pardinus_genome/lp23.fa
+REF=/GRUPOS/grupolince/reference_genomes/lynx_canadensis/lc4.fa
 
 ###################################################
 ## Divide all individuals VCF in Population VCFs ##
 ###################################################
 
-# Allele count file
-touch $OUTdir/all.allelecounts
+# Allele count file - make sure to start with an empty one
+touch $OUTdir/all.allelecounts > $OUTdir/all.allelecounts
 
-echo " - dividing $INVCF by populations and writing allele counts -"
+echo " - dividing ${INVCF} by populations and writing allele counts -"
 
-for i in ${popARRAY[@]}
+for pop in ${popARRAY[@]}
   do
-    samplesARRAY=($(grep "#CHROM" "$INVCF" | tr '\t' '\n' | grep "c_ll_$i"))
 
-    echo "extracting $i population..."
+    if [[ ${pop} == mo ]]
+    then
+    samplesARRAY=($(grep -m1 "#CHROM" ${INVCF} | tr '\t' '\n' | grep -E "c_ll_ka|c_ll_to" | grep -vE "c_ll_vl_0137|c_ll_tu_0154"))
+
+    else
+    samplesARRAY=($(grep -m1 "#CHROM" ${INVCF} | tr '\t' '\n' | grep "c_ll_${pop}" | grep -vE "c_ll_vl_0137|c_ll_tu_0154"))
+
+    fi
+
+    echo "extracting ${pop} population..."
 
     # select samples from pop i
     /opt/gatk-4.1.0.0/gatk SelectVariants \
     -R $REF \
     -V $INVCF \
     $(for j in ${samplesARRAY[@]}; do echo "-sn ${j}";done) \
-    -O $OUTdir/${i}.vcf
+    -O $OUTdir/${pop}.vcf
 
-    echo "counting $i alleles..."
+    echo "counting ${pop} alleles..."
 
   # Extract allele counts and write file (IMPORTANT - check VCF format for column selection)
-    grep -v "#" $OUTdir/${i}.vcf | cut -d';' -f2,4 | \
-    sed 's/AC=//g' | sed 's/;AN=/ /g' | awk -F' ' 'BEGIN { OFS = " " } {print $2-$1,$1}' \
-    > $OUTdir/${i}.allelecounts
+    grep -v "#" $OUTdir/${pop}.vcf | \
+    grep -o -E 'AC=[[:digit:]]{1,3}\.?[[:digit:]]{0,3}.*AN=[[:digit:]]{1,3}\.?[[:digit:]]{0,3}' | \
+    cut -d';' -f1,3 | sed 's/AC=//g' | sed 's/;AN=/ /g' | \
+    awk -F' ' 'BEGIN { OFS = " " } {print $2-$1,$1}' \
+    > $OUTdir/${pop}.allelecounts
 
   # this if step is to avoid that the first column of the pasted file is empty
     ncols=($(wc -l $OUTdir/all.allelecounts))
     if [[ $ncols -eq 0 ]]
       then
         # First iteration goes as it is
-        cat $OUTdir/${i}.allelecounts > $OUTdir/all.allelecounts
+        cat $OUTdir/${pop}.allelecounts > $OUTdir/all.allelecounts
       else
         # else Paste to final Allele Count file
-        paste -d' ' $OUTdir/all.allelecounts $OUTdir/${i}.allelecounts > tmp \
+        paste -d' ' $OUTdir/all.allelecounts $OUTdir/${pop}.allelecounts > tmp \
         && mv tmp $OUTdir/all.allelecounts
     fi
 done
