@@ -3,7 +3,7 @@
 .RData
 .Ruserdata
 .RDataTmp
-Output/
+BayPass_OutPut
 SamTools_Depth
 plink_pca
 .DS_Store

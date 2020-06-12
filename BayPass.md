@@ -24,16 +24,31 @@ In order to run the software we will need:
 
 – Environmental variable files: in the form of different files with one column per population and their respective measurement for that particular covariate.
 
-The Allele Count file will have to be generated from the VCF file containing information on all the populations of interest. Before generating the Allele Count file I will also proceed to filter out variants with MAF < 5%, to avoid introducing noise from low frequency variants.
+The Allele Count file will have to be generated from the VCF file containing information on all the populations of interest. Before generating the Allele Count file I will also proceed to filter out the samples I won't include in the final analysis, the regions that are not autosomic and variants with MAF < 5%, to avoid introducing noise from low frequency variants.
 
 The Environmental variable files have already been generated and can be found at /home/ebazzicalupo/BayPass/Covariate_Data in the genomics-b server of EBD.
 
-## Filtering for MAF > 5%
+## Filtering for wanted samples, autosomic scaffolds and MAF > 5%
 
-I will filter the final VCF from my variant filtering pipeline (2.Variant_filtering.md) to remove variants with a MAF of less than 5%. To do that I will use bcftools view:
+I will filter the final VCF from my variant filtering pipeline (2.Variant_filtering.md) to remove variants with a MAF of less than 5%. First I will subset my VCF to include only the samples I want and autosomic scaffolds only using GATK SelectVariants, then I will filter MAF using bcftools view:
 ```
-bcftools view -i 'MAF>0.05' /home/ebazzicalupo/BayPass/VCF/ll_wholegenome_LyCa_ref.filter7.vcf \
-> /home/ebazzicalupo/BayPass/VCF/ll_wholegenome_LyCa_ref.filter7.maf5pc.vcf
+cd /home/ebazzicalupo/BayPass/VCF
+
+popARRAY=($(grep -m1 "#CHROM" ll_wholegenome_LyCa_ref.sorted.filter7.vcf | tr '\t' '\n' | grep "c_ll" | cut -d"_" -f3 | sort -u | grep -vE "ba|og|no|po|cr"))
+samplesARRAY=($(for pop in ${popARRAY[@]}; do grep -m1 "#CHROM" ll_wholegenome_LyCa_ref.sorted.filter7.vcf | tr '\t' '\n' | grep "c_ll_${pop}" | grep -vE "c_ll_vl_0137|c_ll_tu_0154"; done))
+
+/opt/gatk-4.1.0.0/gatk IndexFeatureFile -F ll_wholegenome_LyCa_ref.sorted.filter7.vcf
+
+/opt/gatk-4.1.0.0/gatk SelectVariants \
+-R /GRUPOS/grupolince/reference_genomes/lynx_canadensis/lc4.fa \
+-V ll_wholegenome_LyCa_ref.sorted.filter7.vcf \
+$(for j in ${samplesARRAY[@]}; do echo "-sn ${j}";done) \
+-L /GRUPOS/grupolince/reference_genomes/lynx_canadensis/autosomic_scaffolds.bed \
+-O ll_wholegenome_LyCa_ref.sorted.filter7.finalset.vcf
+
+
+bcftools view -i 'MAF>0.05' ll_wholegenome_LyCa_ref.sorted.filter7.finalset.vcf \
+> ll_wholegenome_LyCa_ref.sorted.filter7.finalset.maf5pc.vcf
 ```
 
 ## Generating Allele Count data file
@@ -47,7 +62,7 @@ screen -S allelecounts
 script allelecounts_baypass.log
 
 ./Allele_Count_generation.sh \
-/home/ebazzicalupo/BayPass/VCF/ll_wholegenome_LyCa_ref.filter7.maf5pc.vcf \
+/home/ebazzicalupo/BayPass/VCF/ll_wholegenome_LyCa_ref.sorted.filter7.finalset.maf5pc.vcf \
 /home/ebazzicalupo/BayPass/AlleleCounts
 ```
 
@@ -56,9 +71,11 @@ To avoid possible bias due to consecutive SNPs being non-independant observation
 To obtain these datasets I used the following script:
 
 ```
+cd /home/ebazzicalupo/BayPass/AlleleCounts
 # For the awk script to work I need to iterate from 0 to 49
 for n in {0..49}
  do
+  echo ${n}
   awk -v number="$n" 'NR % 50 == 0+number' all.allelecounts > all.allelecounts.${n}
 done
 
@@ -72,9 +89,11 @@ mv all.allelecounts.0 all.allelecounts.50
 Now I will run BayPass with the generated allele count data using the CORE model with no Co-Variate data.
 
 ```
+# The total should be 1..50 - I will run it differently based on how many cores
+# are available and the progress I made
 for n in {1..50}
  do
-  screen -dmS core_${n}  sh -c "path/to/baypass_core.sh ${n}; exec /bin/bash"
+  screen -dmS core_${n}  sh -c "/home/ebazzicalupo/BayPass/baypass_core.sh ${n}; exec /bin/bash"
 done
 ```
 The results under the CORE model can be analyzed in R on my laptop. The results directory (OutPut) was copied in the project directory
@@ -84,11 +103,11 @@ The results under the CORE model can be analyzed in R on my laptop. The results 
 # Load Libraries and Functions #
 require(corrplot) ; require(ape)
 library(geigen)
-source("/Users/enricobazzicalupo/Desktop/Pruebas_Baypass/utils/baypass_utils.R")
+source("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/Baypass_executables/baypass_utils.R")
 
 # Upload estimate of omega #
-omega=as.matrix(read.table("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/OutPut/CORE_mat_omega.out"))
-pop.names=c("CR","KA","KI","LA","OG","TO","TU","UR","VL","YA")
+omega=as.matrix(read.table("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/BayPass_OutPut/CORE_1_mat_omega.out"))
+pop.names=c("CA","KI","LA","MO","TU","UR","VL","YA")
 dimnames(omega)=list(pop.names,pop.names)
 
 # Compute and visualize the correlation matrix #
@@ -101,8 +120,6 @@ plot(bta14.tree,type="p",
      main=expression("Hier. clust. tree based on"~hat(Omega)~"("*d[ij]*"=1-"*rho[ij]*")"))
 
 # Estimates of the XtX differentiation measures #
-anacore.snp.res=read.table("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/OutPut/CORE_summary_pi_xtx.out",h=T)
+anacore.snp.res=read.table("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/BayPass_OutPut/CORE_1_summary_pi_xtx.out",h=T)
 plot(anacore.snp.res$M_XtX)
-
-
 ```
