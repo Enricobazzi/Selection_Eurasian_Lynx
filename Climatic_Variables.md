@@ -30,7 +30,7 @@ I imported the data for all biovariables from the WorldClim database (resolution
 # first load all environmental data:
 worldclim <- getData("worldclim", var = "bio", res = 10)
 # and all coordinates data:
-coord_table <- read_delim("~/Dropbox/LL_LC_LR_Databases/CSV_LL_selection_coordinates_noNA_mongolia.csv", col_names = T, delim = ',')
+coord_table <- read_delim("~/Dropbox/LL_LC_LR_Databases/LL_coords/csv_LL_selection_coords_finalset.csv", col_names = T, delim = ',')
 # define populations
 populations <- coord_table$pop %>% unique
 ```
@@ -136,8 +136,8 @@ for (i in 1:length(populations)){
 ```
 
 There is high variability of polygon area:
-Poland has 0.19 with all the points clustered together,while the biggest area is Yakutia (which has a far away point), with 18.22.
-Others values are: ~1 (ki,ur,ba); ~5 (la,vl,mo); ~10 (no,cr,ca).
+Ki has 0.19 with a very narrow triangle shape,while the biggest area is Yakutia (which has a far away point), with 18.39.
+Others values are: 2-5 (mo,ur,la); 8-11 (vl,ca).
 
 I import the data for Tuva only first:
 
@@ -209,5 +209,5 @@ write.table(x = table,file = "WorldClim_table.tsv",quote=FALSE, col.names = F, r
 
 I exported it as a TSV for easier manipulation in excel. From there I will:
 
-- change the decimals to only 2;
+- change the decimals to only 2; 
 - change the order of the columns so that they are in alphabetical order.
