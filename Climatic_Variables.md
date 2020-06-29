@@ -209,5 +209,11 @@ write.table(x = table,file = "WorldClim_table.tsv",quote=FALSE, col.names = F, r
 
 I exported it as a TSV for easier manipulation in excel. From there I will:
 
-- change the decimals to only 2; 
-- change the order of the columns so that they are in alphabetical order.
+- change the decimals to only 2;
+- change the order of the columns so that they are in alphabetical order (as in allele counts file: ca - ki - la - mo - tu - ur - vl - ya).
+
+Then I will add the additional environmental data sent by Krystoff. This will be done manually as he sent the data in another table. This data is regarding prey type ...
+
+Finally I can copy the final table to the BayPass folder in the EBD genomics server:
+```
+```

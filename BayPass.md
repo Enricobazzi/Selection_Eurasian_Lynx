@@ -122,7 +122,7 @@ for (n in 1:length(combn(50,2))){
 
   # Calculate FMD distance value between matrixes
   fmd <- fmd.dist(omega1,omega2)
-  
+
   # add dataframe entry
   omegas <- rbind(omegas, data.frame(O1 = i, O2 = k, FMD = fmd))
 }
@@ -203,7 +203,7 @@ for (n in 1:50){
 
  # calculate the database SNP number sequence - 2100553 is the total number of SNPs in all datasets
  anacore.snp.res <- data.frame(anacore.snp.res, SNPnum = seq(n, 2100553, by = 50))
- 
+
  # add the dataset rows to the total snps table
  snps.table <- rbind(snps.table, anacore.snp.res)
 }
@@ -219,16 +219,16 @@ SNPIDs <- read_tsv("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/B
 # Add SNP IDs to the total snps table
 snps.table <- data.frame(snps.table,SNPIDs)
 
-# plot XtX values and add the threshold calculated with PODS 
-manhplot <- ggplot(snps.table, aes(x = SNPnum, y = M_XtX, 
+# plot XtX values and add the threshold calculated with PODS
+manhplot <- ggplot(snps.table, aes(x = SNPnum, y = M_XtX,
                                  color = as.factor(scaffold))) +
   geom_point(alpha = 0.75) +
   geom_hline(yintercept=pod.thresh,linetype="dashed", size=0.5)
 print(manhplot)
 
-# plot XtX values above 15 (pruned) and add the threshold calculated with PODS 
+# plot XtX values above 15 (pruned) and add the threshold calculated with PODS
 pruned.snps.table <- subset(snps.table, M_XtX > 15)
-pruned.manhplot <- ggplot(pruned.snps.table, aes(x = SNPnum, y = M_XtX, 
+pruned.manhplot <- ggplot(pruned.snps.table, aes(x = SNPnum, y = M_XtX,
                                  color = as.factor(scaffold))) +
   geom_point(alpha = 0.75) +
   geom_hline(yintercept=pod.thresh,linetype="dashed", size=0.5)
@@ -236,7 +236,7 @@ print(pruned.manhplot)
 
 # try with representing just one scaffold with physical distance between SNPs
 sc11arrow.snps.table <- subset(snps.table, scaffold == "scaffold_11_arrow_ctg1")
-sc11arrow.manhplot <- ggplot(sc11arrow.snps.table, aes(x = position, y = M_XtX, 
+sc11arrow.manhplot <- ggplot(sc11arrow.snps.table, aes(x = position, y = M_XtX,
                                  color = as.factor(scaffold))) +
   geom_point(alpha = 0.75) +
   geom_hline(yintercept=pod.thresh,linetype="dashed", size=0.5)
@@ -246,4 +246,33 @@ To get the list of SNPs that exceed the threshold value:
 ```{R}
 snps.outliers <- subset(snps.table, M_XtX > pod.thresh)
 nrow(snps.outliers)
+```
+
+## AUX Model
+
+Now I can run BayPass under the The Auxiliary Variable Covariate model (AUX), in order to check for SNPs associated with a particular environmental co-variable (see Climatic_Variables.md). First I need to divide my table with all the data into tables each containing data for one covariable only:
+```
+varLIST=($(cut -f1 Covariate_Data/WorldClim_table.tsv | grep -v "pop"))
+
+for var in ${varLIST[@]}
+ do
+  echo "creating ${var} table"
+  grep -w "${var}" Covariate_Data/WorldClim_table.tsv | cut -f2- > Covariate_Data/${var}_data.txt
+done
+```
+The analysis has to be run for each co-variable separately, also I will divide my SNP dataset into 50 as I did before.
+
+This means that I will need to run the analysis 50 times for each co-variable. I will loop through all my co-variables but only one at the time will be run, in order to not saturate the server's computing capacity. Also not all 50 SNP subsets will be run at the same time.
+```
+varLIST=($(cut -f1 Covariate_Data/WorldClim_table.tsv | grep -v "pop"))
+
+for var in ${varLIST[0]}
+ do
+  echo "analyzing association with ${var}"
+  for n in {1..10}
+   do
+    echo "dataset ${n}"
+    screen -dmS aux_${var}_${n}  sh -c "/home/ebazzicalupo/BayPass/baypass_aux.sh ${n} ${var}; exec /bin/bash"
+  done
+done
 ```
