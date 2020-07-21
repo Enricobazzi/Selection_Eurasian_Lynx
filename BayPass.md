@@ -252,27 +252,41 @@ nrow(snps.outliers)
 
 Now I can run BayPass under the The Auxiliary Variable Covariate model (AUX), in order to check for SNPs associated with a particular environmental co-variable (see Climatic_Variables.md). First I need to divide my table with all the data into tables each containing data for one covariable only:
 ```
+cd /home/ebazzicalupo/BayPass
 varLIST=($(cut -f1 Covariate_Data/WorldClim_table.tsv | grep -v "pop"))
 
 for var in ${varLIST[@]}
  do
   echo "creating ${var} table"
-  grep -w "${var}" Covariate_Data/WorldClim_table.tsv | cut -f2- > Covariate_Data/${var}_data.txt
+  grep -w "${var}" Covariate_Data/WorldClim_table.tsv | cut -f2-  | tr '\t' ' ' \
+  > Covariate_Data/${var}_data.txt
 done
 ```
 The analysis has to be run for each co-variable separately, also I will divide my SNP dataset into 50 as I did before.
 
-This means that I will need to run the analysis 50 times for each co-variable. I will loop through all my co-variables but only one at the time will be run, in order to not saturate the server's computing capacity. Also not all 50 SNP subsets will be run at the same time.
+This means that I will need to run the analysis 50 times for each co-variable. I will loop through all my co-variables but only one at the time will be run, in order to not saturate the server's computing capacity. Also not all 50 SNP subsets will be run at the same time (I will do 10 datasets at the time).
 ```
+cd /home/ebazzicalupo/BayPass
 varLIST=($(cut -f1 Covariate_Data/WorldClim_table.tsv | grep -v "pop"))
 
-for var in ${varLIST[0]}
+for var in ${varLIST[1]}
  do
   echo "analyzing association with ${var}"
-  for n in {1..10}
+  for n in {41..50}
    do
     echo "dataset ${n}"
     screen -dmS aux_${var}_${n}  sh -c "/home/ebazzicalupo/BayPass/baypass_aux.sh ${n} ${var}; exec /bin/bash"
   done
 done
+```
+After running the first two biovariables 10 datasets at the time, I have an alternative version of the script (baypass_aux_v2.sh) which will be launched for each biovariable, running the analysis on the 50 datasets (long time but you can forget about it and wait it to end).
+```
+cd /home/ebazzicalupo/BayPass
+varLIST=($(cut -f1 Covariate_Data/WorldClim_table.tsv | grep -v "pop" | grep -vwE "bio1|bio2"))
+for var in ${varLIST[@]}
+ do
+  echo "analyzing association with ${var}"
+  screen -dmS aux_${var}  sh -c "/home/ebazzicalupo/BayPass/baypass_aux_v2.sh ${var}; exec /bin/bash"
+done
+
 ```
