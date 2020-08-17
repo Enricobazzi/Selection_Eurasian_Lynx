@@ -7,3 +7,7 @@ BayPass_OutPut
 SamTools_Depth
 plink_pca
 .DS_Store
+PCAdapt_plink
+PCAdapt_results
+GenWin_results
+BayPass_results

@@ -105,6 +105,8 @@ require(corrplot) ; require(ape)
 library(geigen)
 source("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/Baypass_executables/baypass_utils.R")
 library(tidyverse)
+library(GenWin)
+library(R.utils)
 ```
 The correlation matrices calculated with the different datasets will be compared to make sure of the consistency in population history reconstruction
 ```{R}
@@ -182,8 +184,8 @@ Now with the re-run analysis we can define a 99% threshold for XtX outliers
 ```{R}
 # get the pod XtX
 pod.xtx=read.table("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/BayPass_OutPut/PODS_summary_pi_xtx.out",h=T)$M_XtX
-# compute the 1% threshold
-pod.thresh=quantile(pod.xtx,probs=0.9999)
+# compute the >99.9% threshold
+pod.thresh=as.numeric(quantile(pod.xtx,probs=0.999,na.rm=T))
 ```
 The XtX values calculated from all of the datasets can be plotted like this:
 ```{R}
@@ -193,7 +195,6 @@ The XtX values calculated from all of the datasets can be plotted like this:
 # Create a joint table of all the datasets.
 # To know which SNP is which I will give each a number based on the actual SNP number of the general dataset:
 # dataset1: SNP-1, SNP-51, SNP-101...; dataset2: SNP-2, SNP-52, SNP-102, ...; etc.
-
 # create total snps table
 snps.table <- data.frame()
 
@@ -213,18 +214,37 @@ snps.table <- snps.table %>% arrange(SNPnum)
 
 # Add SNP ID information
 SNPIDs <- read_tsv("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/BayPass_OutPut/finalset.maf5pc.SNPIDs",
-                   col_names = F) %>%
-  rename("SNPnum" = X1,"scaffold" =  X2, "position" = X3)
+                   col_names = F)[,2-3] %>%
+    rename("scaffold" =  X2, "position" = X3)
 
 # Add SNP IDs to the total snps table
 snps.table <- data.frame(snps.table,SNPIDs)
 
+# Add Odd/Even column for Manhattan plot
+CHR <- data.frame()
+for (n in 1:length(unique(snps.table$scaffold))){
+   scaffold_lines <- snps.table %>% filter(scaffold==unique(snps.table$scaffold)[n])
+   if((n %% 2) == 0) {
+    num <- "Even"
+   } else {
+    num <- "Odd"
+   } 
+   number <- data.frame(colora = rep(num, nrow(scaffold_lines)))
+   CHR <- data.frame(rbind(CHR, number))
+}
+snps.table <- data.frame(cbind(snps.table, CHR))
+
+# Save the table
+write.table(x = snps.table,
+            file = paste0("BayPass_results/CORE_XtX_results.tsv"),
+            quote=FALSE,  col.names = T, row.names = FALSE, sep= "\t")
+
 # plot XtX values and add the threshold calculated with PODS
-manhplot <- ggplot(snps.table, aes(x = SNPnum, y = M_XtX,
-                                 color = as.factor(scaffold))) +
-  geom_point(alpha = 0.75) +
-  geom_hline(yintercept=pod.thresh,linetype="dashed", size=0.5)
-print(manhplot)
+manhplot <- ggplot(snps.table, aes(x = SNPnum, y = M_XtX, color = colora)) +
+  geom_point(alpha = 0.75, stat = "identity", size=1) +
+  scale_color_manual(values= c("Black","darkgray")) +
+  geom_hline(yintercept=pod.thresh,linetype="dashed", size=0.5, color="red")
+manhplot
 
 # plot XtX values above 15 (pruned) and add the threshold calculated with PODS
 pruned.snps.table <- subset(snps.table, M_XtX > 15)
@@ -288,5 +308,67 @@ for var in ${varLIST[@]}
   echo "analyzing association with ${var}"
   screen -dmS aux_${var}  sh -c "/home/ebazzicalupo/BayPass/baypass_aux_v2.sh ${var}; exec /bin/bash"
 done
+```
 
+```{R}
+variables <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", "bio9", "bio10", "bio11", "bio12", "bio13", "bio14", "bio15", "bio16", "bio17", "bio18", "bio19")
+
+for (i in 1:length(variables)){
+
+ var <- variables[i]
+
+ snps.table <- data.frame()
+
+ for (n in 1:50){
+  # upload the dataset table:
+  var.snp=read.table(paste0("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/BayPass_OutPut/AUX_", var,"_",n,"_summary_betai.out"),h=T)
+ 
+  # calculate the database SNP number sequence - 2100553 is the total number of SNPs in all datasets
+  var.snp <- data.frame(var.snp, SNPnum = seq(n, 2100553, by = 50))
+ 
+  # add the dataset rows to the total snps table
+  snps.table <- rbind(snps.table, var.snp)
+ }
+ 
+ # order the table based on the SNP number
+ snps.table <- snps.table %>% arrange(SNPnum)
+ 
+ # Add SNP ID information
+ SNPIDs <- read_tsv("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/BayPass_OutPut/finalset.maf5pc.SNPIDs", col_names = F)[,2-3] %>%
+    rename("scaffold" =  X2, "position" = X3)
+ 
+ # Add SNP IDs to the total snps table
+ snps.table <- data.frame(snps.table,SNPIDs)
+ 
+ # Add chromosome numbers and Odd/Even for colors
+ CHRnumber <- data.frame()
+ for (n in 1:length(unique(snps.table$scaffold))){
+   scaffold_lines <- snps.table %>% filter(scaffold==unique(snps.table$scaffold)[n])
+   if((n %% 2) == 0) {
+    num <- "Even"
+   } else {
+    num <- "Odd"
+   } 
+   number <- data.frame(chromosome = rep(n, nrow(scaffold_lines)), colora = num)
+   CHRnumber <- data.frame(rbind(CHRnumber, number))
+ }
+ snps.table <- data.frame(cbind(snps.table, CHRnumber))
+ 
+ # Plot BF - ADJUST LEGEND AND X axis (show chromosome/scaffold)
+ manhplot <- ggplot(snps.table, aes(x = SNPnum, y = BF.dB., color = colora)) +
+   geom_point(alpha = 0.75, stat = "identity") +
+   scale_color_manual(values= c("Black","Grey")) +
+    # TITLE
+    # LEGEND
+    # X AXIS SCAFFOLD NAMES BELOW
+   geom_hline(yintercept=20,linetype="dashed", size=0.5, color="red")
+ 
+ # save plot
+ ggsave(filename = paste("BayPass_plots&tables/",var,"_manhattanplot.pdf", sep=""), plot=manhplot, height=8, width = 12, units ="cm", dpi="print")
+ 
+ # Outliers Table
+ snps.outliers <- subset(snps.table, BF.dB. > 20) %>% 
+   select(scaffold, position, SNPnum, BF.dB.)
+ write.table(x = snps.outliers,file = paste0("BayPass_results/",var,"_outliers_SNPs.tsv"),quote=FALSE,  col.names = T, row.names = FALSE, sep= "\t")
+}
 ```
