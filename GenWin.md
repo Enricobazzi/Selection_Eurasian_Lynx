@@ -127,7 +127,8 @@ for (n in 1:length(unique(combined.table$scaffold))) {
 
  # Analyze data with GenWin - Produces a table and a plot
  spline <- splineAnalyze(data_chr$log_p_comb, data_chr$position,
-                         smoothness=100, plotRaw=F, plotWindows=F,  method=3)
+                         smoothness=100,
+                         plotRaw=F, plotWindows=F,  method=3)
  # Get the table with the results
  spline.data <- as.data.frame(spline$windowData)
  # Add the scaffold name to the results table
@@ -418,10 +419,6 @@ for (n in 1:length(variables)){
  assign(paste0(var,"_winoutliers_nsnps"), data.frame(spline_outliers_nsnps))
 }
 
-
-
-
-
 table.WG=read.table(paste0("BayPass_plots&tables/",var,"_GenWin_windows_WholeGenomeOutliers.tsv"),h=T)
 table.WG$var <- rep(var,nrow(table.WG))
 assign(paste0(var,"_WGoutliers_data"), data.frame(table.WG))
@@ -438,13 +435,130 @@ anti_join(table.WG, table.CHR)
 # rows exclusive to chr
 anti_join(table.CHR, table.WG)
 
-
-
 for (n in 1:length(levels(unique(table.CHR$scaffold)))){
   chr=levels(unique(table.CHR$scaffold))[n]
   data_chr <- table.CHR %>% filter(scaffold==chr)
   assign(paste0(chr,"_perChr_data"), data.frame(data_chr))
   
 }
+```
+Trial of analysis with similar framework as Amambua-Ngwa et al. 2018 (Consistent signatures of selection from genomic analysis of pairs of temporal and spatial Plasmodium falciparum populations from The Gambia)
+```{R}
+# Load table if not already loaded
+combined.table=data.frame(read.table("GenWin_results/combined_differentiation_results_nona.tsv",
+                          h=T))
+
+# First try with just one scaffold to see how it would look like
+
+n=1
+chr=as.character(unique(combined.table$scaffold)[n])
+
+# Get SNPs table for the scaffold only
+data_chr <- combined.table %>% filter(scaffold==chr)
+
+# Analyze data with GenWin - Produces a table and a plot
+for (k in seq(5000, 15000, by = 1000)){
+  spline <- splineAnalyze(data_chr$log_p_comb, data_chr$position,
+                        smoothness=k,
+                        mean=mean(combined.table$log_p_comb),
+                        s2=var(combined.table$log_p_comb),
+                        plotRaw=F, plotWindows=F,  method=3)
+  
+  spline.data <- data.frame(spline$windowData)
+
+  spline.data$WindowLength <- spline.data$WindowStop-spline.data$WindowStart
+
+  spline.data$WindowNumber <- 1:nrow(spline.data)
+
+  assign(paste0("bp",k,"_spline"), spline.data)
+}
+
+
+ggplot(data=bp5000_spline, aes(x=WindowStart, y=Wstat, group=1)) +
+  geom_line()+
+  geom_point()
+
+ggplot(data=bp15000_spline, aes(x=WindowStart, y=Wstat, group=1)) +
+  geom_step()
+
+ggplotly()
+
+
+library("GenomicRanges")
+
+ranges6000 = with(`6000bp_spline`, GRanges(chr, IRanges(start = WindowStart, end = WindowStop, names = SNPcount)))
+
+ranges7000 = with(`7000bp_spline`, GRanges(chr, IRanges(start = WindowStart, end = WindowStop, names = SNPcount)))
+
+a = intersect(ranges6000, ranges7000)
+queryHits(ranges6000)
+data.frame(data.frame(a@seqnames), data.frame(a@ranges)[,1:2])
+
+
+
+
+
+
+
+
+# Empty Spline output table to fill with GenWin results
+all_spline <- data.frame()
+
+# Loop through all scaffolds as GenWin works on one scaffold at the time
+for (n in 1:length(unique(combined.table$scaffold))) {
+
+ # Scaffold:
+ chr=as.character(unique(combined.table$scaffold)[n])
+ # Get SNPs table for the scaffold only
+ data_chr <- combined.table %>% filter(scaffold==chr)
+
+ # Analyze data with GenWin - Produces a table and a plot
+ spline <- splineAnalyze(data_chr$log_p_comb, data_chr$position,
+                         smoothness=100,
+                         plotRaw=F, plotWindows=F,  method=3)
+ # Get the table with the results
+ spline.data <- as.data.frame(spline$windowData)
+ # Add the scaffold name to the results table
+ spline.data$scaffold <- rep(chr,nrow(spline.data))
+
+ # Alternate Odd and Even - for later plot of all scaffolds
+ if((n %% 2) == 0) {
+  spline.data$color <- rep("Even",nrow(spline.data))
+ } else {
+  spline.data$color <- rep("Odd",nrow(spline.data))
+ } 
+ # Fill the GenWin results table
+ all_spline <- data.frame(rbind(all_spline, data.frame(spline.data)))
+}
+
+# Add the Window length
+all_spline$WindowLength <- all_spline$WindowStop-all_spline$WindowStart
+# Add the Window Number
+all_spline$WindowNumber <- 1:nrow(all_spline)
+
+# Write final table
+write.table(x = all_spline, 
+            file = paste0("GenWin_results/combined_differentiation_GenWin_windows.tsv"),
+            quote=FALSE,  col.names = T, row.names = FALSE, sep= "\t")
+
+# Calculate Outlier value
+all_spline.thresh=as.numeric(quantile(all_spline$Wstat,probs=0.999,na.rm=T))
+
+# Write table of outlier windows
+all_spline_total_outliers <- subset(all_spline, Wstat > all_spline.thresh)
+
+write.table(x = all_spline_total_outliers, 
+          file = paste0("GenWin_results/combined_differentiation_GenWin_windows_outliers.tsv"),
+          quote=FALSE,  col.names = T, row.names = FALSE, sep= "\t")
+
+# Manhattan plot of window results for whole genome:
+manhplot <- ggplot(all_spline, aes(x = WindowNumber, y = Wstat, color=color)) +
+    geom_point(alpha = 0.75, stat = "identity", size=1) +
+    scale_color_manual(values= c("Black","darkgray")) +
+    # TITLE
+    # LEGEND
+    # X AXIS SCAFFOLD NAMES BELOW
+    geom_hline(yintercept=all_spline.thresh,linetype="dashed", size=0.5, color="red")
+manhplot
 
 ```

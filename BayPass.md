@@ -228,7 +228,7 @@ for (n in 1:length(unique(snps.table$scaffold))){
     num <- "Even"
    } else {
     num <- "Odd"
-   } 
+   }
    number <- data.frame(colora = rep(num, nrow(scaffold_lines)))
    CHR <- data.frame(rbind(CHR, number))
 }
@@ -309,7 +309,7 @@ for var in ${varLIST[@]}
   screen -dmS aux_${var}  sh -c "/home/ebazzicalupo/BayPass/baypass_aux_v2.sh ${var}; exec /bin/bash"
 done
 ```
-
+To plot the results in R:
 ```{R}
 variables <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", "bio9", "bio10", "bio11", "bio12", "bio13", "bio14", "bio15", "bio16", "bio17", "bio18", "bio19")
 
@@ -322,24 +322,24 @@ for (i in 1:length(variables)){
  for (n in 1:50){
   # upload the dataset table:
   var.snp=read.table(paste0("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/BayPass_OutPut/AUX_", var,"_",n,"_summary_betai.out"),h=T)
- 
+
   # calculate the database SNP number sequence - 2100553 is the total number of SNPs in all datasets
   var.snp <- data.frame(var.snp, SNPnum = seq(n, 2100553, by = 50))
- 
+
   # add the dataset rows to the total snps table
   snps.table <- rbind(snps.table, var.snp)
  }
- 
+
  # order the table based on the SNP number
  snps.table <- snps.table %>% arrange(SNPnum)
- 
+
  # Add SNP ID information
  SNPIDs <- read_tsv("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/BayPass_OutPut/finalset.maf5pc.SNPIDs", col_names = F)[,2-3] %>%
     rename("scaffold" =  X2, "position" = X3)
- 
+
  # Add SNP IDs to the total snps table
  snps.table <- data.frame(snps.table,SNPIDs)
- 
+
  # Add chromosome numbers and Odd/Even for colors
  CHRnumber <- data.frame()
  for (n in 1:length(unique(snps.table$scaffold))){
@@ -348,12 +348,12 @@ for (i in 1:length(variables)){
     num <- "Even"
    } else {
     num <- "Odd"
-   } 
+   }
    number <- data.frame(chromosome = rep(n, nrow(scaffold_lines)), colora = num)
    CHRnumber <- data.frame(rbind(CHRnumber, number))
  }
  snps.table <- data.frame(cbind(snps.table, CHRnumber))
- 
+
  # Plot BF - ADJUST LEGEND AND X axis (show chromosome/scaffold)
  manhplot <- ggplot(snps.table, aes(x = SNPnum, y = BF.dB., color = colora)) +
    geom_point(alpha = 0.75, stat = "identity") +
@@ -362,13 +362,31 @@ for (i in 1:length(variables)){
     # LEGEND
     # X AXIS SCAFFOLD NAMES BELOW
    geom_hline(yintercept=20,linetype="dashed", size=0.5, color="red")
- 
+
  # save plot
  ggsave(filename = paste("BayPass_plots&tables/",var,"_manhattanplot.pdf", sep=""), plot=manhplot, height=8, width = 12, units ="cm", dpi="print")
- 
+
  # Outliers Table
- snps.outliers <- subset(snps.table, BF.dB. > 20) %>% 
+ snps.outliers <- subset(snps.table, BF.dB. > 20) %>%
    select(scaffold, position, SNPnum, BF.dB.)
  write.table(x = snps.outliers,file = paste0("BayPass_results/",var,"_outliers_SNPs.tsv"),quote=FALSE,  col.names = T, row.names = FALSE, sep= "\t")
 }
+```
+For the Snow Data that I have generated I will again analyze with BayPass AUX model using the same script (baypass_aux_v2.sh).
+```
+cd /home/ebazzicalupo/BayPass
+varLIST=($(cut -f1 Covariate_Data/Snow_table.tsv | grep -v "variable"))
+
+for var in ${varLIST[@]}
+ do
+  echo "creating ${var} table"
+  grep -w "${var}" Covariate_Data/Snow_table.tsv | cut -f2-  | tr '\t' ' ' \
+  > Covariate_Data/${var}_data.txt
+done
+
+for var in ${varLIST[@]}
+ do
+  echo "analyzing association with ${var}"
+  screen -dmS aux_${var}  sh -c "/home/ebazzicalupo/BayPass/baypass_aux_v2.sh ${var}; exec /bin/bash"
+done
 ```

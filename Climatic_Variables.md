@@ -3,6 +3,8 @@ title: "Climatic_Variables"
 author: "Enrico"
 date: "31 March 2020"
 output: html_document
+editor_options:
+  chunk_output_type: console
 ---
 
 This is the steps I took in order to extract values of the bioclimatic variables of WorldClim for each Lynx lynx population.
@@ -216,4 +218,5 @@ Then I will add the additional environmental data sent by Krystoff. This will be
 
 Finally I can copy the final table to the BayPass folder in the EBD genomics server:
 ```
+scp WorldClim_table.tsv ebazzicalupo@genomics-b.ebd.csic.es:~/BayPass/Covariate_Data/
 ```

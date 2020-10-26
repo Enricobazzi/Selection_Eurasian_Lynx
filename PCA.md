@@ -1,5 +1,5 @@
 ---
-title: "Variant_filtering"
+title: "PCA"
 author: "Enrico"
 date: "13 April 2020"
 output: html_document
@@ -85,6 +85,19 @@ plink_1.9 --vcf $VCF --double-id --allow-extra-chr --set-missing-var-ids @:# \
 --extract ll_LyCa_ref.prune.in --keep caucasus_samplelist.txt --geno 0.001 \
 --make-bed --pca --out ll_LyCa_ref.caucasus
 ```
+Also only Caucasus population but without "bad" samples
+```
+cd ~/LL_selection/pca_plink
+
+# Get list of Caucasus samples:
+grep "ll_ca" ll_LyCa_ref.fam | grep -vE "0245|0248|0254" > caucasus9_samplelist.txt
+
+VCF=~/LL_selection/LyCaRef_vcfs/ll_wholegenome_LyCa_ref.sorted.filter7.vcf
+
+plink_1.9 --vcf $VCF --double-id --allow-extra-chr --set-missing-var-ids @:# \
+--extract ll_LyCa_ref.prune.in --keep caucasus9_samplelist.txt --geno 0.001 \
+--make-bed --pca --out ll_LyCa_ref.caucasus9
+```
 For a version of the PCA with only the samples from the Western part of the distribution:
 ```
 cd ~/LL_selection/pca_plink
@@ -144,6 +157,10 @@ Copy eigenval and eigenvec files of the version with only Caucasus samples on my
 ```
 scp ebazzicalupo@genomics-a.ebd.csic.es:/home/ebazzicalupo/LL_selection/pca_plink/ll_LyCa_ref.caucasus.eigen* Documents/Selection_Eurasian_Lynx/plink_pca/
 ```
+Copy eigenval and eigenvec files of the version with only Caucasus 9 samples on my laptop:
+```
+scp ebazzicalupo@genomics-a.ebd.csic.es:/home/ebazzicalupo/LL_selection/pca_plink/ll_LyCa_ref.caucasus9.eigen* Documents/Selection_Eurasian_Lynx/plink_pca/
+```
 Copy eigenval and eigenvec files of the version with only Western samples on my laptop:
 ```
 scp ebazzicalupo@genomics-a.ebd.csic.es:/home/ebazzicalupo/LL_selection/pca_plink/ll_LyCa_ref.western.eigen* Documents/Selection_Eurasian_Lynx/plink_pca/
@@ -180,6 +197,9 @@ eigenval <- scan("plink_pca/ll_LyCa_ref.nomiss.noba.noca.eigenval")
 # Caucasus only:
 pca <- read_table2("plink_pca/ll_LyCa_ref.caucasus.eigenvec", col_names = FALSE)
 eigenval <- scan("plink_pca/ll_LyCa_ref.caucasus.eigenval")
+# Caucasus 9 only:
+pca <- read_table2("plink_pca/ll_LyCa_ref.caucasus9.eigenvec", col_names = FALSE)
+eigenval <- scan("plink_pca/ll_LyCa_ref.caucasus9.eigenval")
 # Intergenic:
 pca <- read_table2("plink_pca/ll_intergenic_LyCa_ref.noba.eigenvec", col_names = FALSE)
 eigenval <- scan("plink_pca/ll_intergenic_LyCa_ref.noba.eigenval")
@@ -240,6 +260,7 @@ To plot the data we first calculate the percentage of variance explained by each
 ```{R}
 # first convert to percentage variance explained
 pve <- data.frame(PC = 1:20, pve = eigenval/sum(eigenval)*100)
+pve <- data.frame(PC = 1:9, pve = eigenval/sum(eigenval)*100)
 # then make a plot
 a <- ggplot(pve, aes(PC, pve)) + geom_bar(stat = "identity")
 a + ylab("Percentage variance explained") + theme_light()
@@ -259,6 +280,7 @@ ggplot(pca, aes(PC1, PC2, col = loc, label=ind)) + geom_point(size = 3) +
 #ggsave("PCA.western.pdf", path = "plink_pca/", width=25,height=25,units="cm")
 #ggsave("PCA.eastern.pdf", path = "plink_pca/", width=25,height=25,units="cm")
 #ggsave("PCA.eastern.noog.pdf", path = "plink_pca/", width=25,height=25,units="cm")
+#ggsave("PCA.caucasus9.pdf", path = "plink_pca/", width=25,height=25,units="cm")
 
 ggplotly()
 
