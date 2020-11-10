@@ -151,3 +151,42 @@ Finally I can copy the final table to the BayPass folder in the EBD genomics ser
 ```
 scp Snow_table.tsv ebazzicalupo@genomics-b.ebd.csic.es:~/BayPass/Covariate_Data/
 ```
+To chek how populations are similar to each other for the snow variables:
+```{R}
+library(RColorBrewer)
+library (viridis)
+
+cols <- c("ca"="#B8860b",
+          "ur"="#0F4909", 
+          "ki"=viridis_pal()(5)[1], 
+          "la"=brewer.pal(12,"Paired")[3], 
+          "tu"=brewer.pal(12,"Paired")[8], 
+          "mo"=brewer.pal(12,"Paired")[7], 
+          "vl"=brewer.pal(12,"Paired")[5], 
+          "ya"=brewer.pal(12,"Paired")[6])
+
+
+snow_data <- read_delim("Snow_table.tsv", col_names = T, delim = '\t')
+snow_data_long <- snow_data%>%pivot_longer(cols=ca:ya, names_to="pop")
+
+jan_depth <- snow_data_long %>% filter(variable=="jan_depth")%>%
+  mutate(pop=factor(pop, levels=c("ca","ki","la","ur","mo","tu","vl","ya")))
+
+ggplot(jan_depth, aes(x=pop, y=value, color=pop))+
+  geom_point(size=10, stat='identity')+
+  scale_color_manual(values=cols)+
+  theme_bw()
+
+ggsave("jan_depth_values_dots.pdf", path = "PCA_outliers/",
+        width=25,height=25,units="cm")
+
+snow_days <- snow_data_long %>% filter(variable=="snow_days")%>%
+  mutate(pop=factor(pop, levels=c("ca","ki","la","ur","mo","tu","vl","ya")))
+ggplot(snow_days, aes(x=pop, y=value, color=pop))+ 
+  geom_point(size=10, stat='identity')+
+  scale_color_manual(values=cols)+
+  theme_bw()
+ggsave("snow_days_values_dots.pdf", path = "PCA_outliers/",
+        width=25,height=25,units="cm")
+
+```

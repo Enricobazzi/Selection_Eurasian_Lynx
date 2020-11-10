@@ -108,7 +108,7 @@ manhplot <- ggplot(combined.table, aes(x = SNPnum, y = log_p_comb, color=colora)
     geom_hline(yintercept=pval.thresh,linetype="dashed", size=0.5, color="red")
 manhplot
 ```
-Analyze the combined p-value dataset with GenWin
+Analyze the combined p-value dataset with GenWin - Smoothness set to 10kbp
 ```{R}
 # Load table if not already loaded
 combined.table=data.frame(read.table("GenWin_results/combined_differentiation_results_nona.tsv",
@@ -127,7 +127,9 @@ for (n in 1:length(unique(combined.table$scaffold))) {
 
  # Analyze data with GenWin - Produces a table and a plot
  spline <- splineAnalyze(data_chr$log_p_comb, data_chr$position,
-                         smoothness=100,
+                         smoothness=10000,
+                         mean=mean(combined.table$log_p_comb),
+                         s2=var(combined.table$log_p_comb),
                          plotRaw=F, plotWindows=F,  method=3)
  # Get the table with the results
  spline.data <- as.data.frame(spline$windowData)
@@ -173,6 +175,7 @@ manhplot <- ggplot(all_spline, aes(x = WindowNumber, y = Wstat, color=color)) +
     # X AXIS SCAFFOLD NAMES BELOW
     geom_hline(yintercept=all_spline.thresh,linetype="dashed", size=0.5, color="red")
 manhplot
+ggsave("GenWin_results/combined_differentiation_manhplot_allwindows_Wstat.pdf")
 ```
 Create a manhattan plot for each scaffold of the combined p-values and of the resulting GenWin calculated windows
 ```{R}
@@ -194,7 +197,7 @@ for (n in 1:length(unique(combined.table$scaffold))) {
     geom_hline(yintercept=pval.thresh,linetype="dashed", size=0.5, color="red")
  manhplot
  # Save the scaffold plot
-  filename <- paste("GenWin_results/", chr, "_combined_manhplot_pvalues.pdf", sep="")
+  filename <- paste("GenWin_results/combined_differentiation_manhplot_", chr,"_pvalues.pdf", sep="")
   ggsave(filename)  
 
 
@@ -206,7 +209,7 @@ for (n in 1:length(unique(combined.table$scaffold))) {
      geom_hline(yintercept=all_spline.thresh,linetype="dashed", size=0.5, color="red")
   manhplot
   # Save the scaffold plot
-  filename <- paste("GenWin_results/", chr,"_bubble_WStat_manhplot.pdf", sep="")
+  filename <- paste("GenWin_results/combined_differentiation_manhplot_", chr,"_WStat.pdf", sep="")
   ggsave(filename)  
 }
 ```
@@ -217,7 +220,8 @@ To detect windows of high association with the different bioclimatic variables, 
 
 ```{R}
 # Define the variables to work in a loop
-variables <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", "bio9", "bio10", "bio11", "bio12", "bio13", "bio14", "bio15", "bio16", "bio17", "bio18", "bio19")
+# WorldClim + Snow:
+variables <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", "bio9", "bio10", "bio11", "bio12", "bio13", "bio14", "bio15", "bio16", "bio17", "bio18", "bio19", "jan_depth", "snow_days")
 
 for (k in 1:length(variables)){
 
@@ -263,16 +267,19 @@ for (k in 1:length(variables)){
  
   # Analyze data with GenWin - Produces a table and a plot
   spline <- splineAnalyze(data_chr$BF.dB., data_chr$position,
-                          smoothness=100, plotRaw=T, plotWindows=T,  method=3)
+                          smoothness=10000, 
+                          mean=mean(snps.table$BF.dB.),
+                          s2=var(snps.table$BF.dB.),
+                          plotRaw=T, plotWindows=T,  method=3)
 
   # Get the table with the results
   spline.data <- as.data.frame(spline$windowData)
   # Add the scaffold name to the results table
   spline.data$scaffold <- rep(chr,nrow(spline.data))
   # Add the variable
-  spline.data$var <- rep(var,nrow(all_spline))
+  spline.data$var <- rep(var,nrow(spline.data))
   # Add the Window length
-  spline.data$WindowLength <- all_spline$WindowStop-all_spline$WindowStart
+  spline.data$WindowLength <- spline.data$WindowStop-spline.data$WindowStart
 
   # Alternate Odd and Even - for later plot of all scaffolds
   if((n %% 2) == 0) {
@@ -299,13 +306,13 @@ for (k in 1:length(variables)){
              quote=FALSE,  col.names = T, row.names = FALSE, sep= "\t")
  # Whole-Genome threshold outlier windows:
  write.table(x = all_spline_total_outliers,
-             file = paste0("GenWin_results/",var,"_GenWin_windows_WholeGenomeOutliers.tsv"),
+             file = paste0("GenWin_results/",var,"_GenWin_windows_outliers.tsv"),
              quote=FALSE,  col.names = T, row.names = FALSE, sep= "\t")
 }
 ```
 Plot the results of GenWin for each variable (whole genome and single scaffolds)
 ```{R}
-variables <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", "bio9", "bio10", "bio11", "bio12", "bio13", "bio14", "bio15", "bio16", "bio17", "bio18", "bio19")
+variables <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", "bio9", "bio10", "bio11", "bio12", "bio13", "bio14", "bio15", "bio16", "bio17", "bio18", "bio19", "jan_depth", "snow_days")
 
 for (n in 1:length(variables)){
 
@@ -339,26 +346,26 @@ for (n in 1:length(variables)){
  # Extract table of outlier windows
  all_spline_total_outliers <- subset(all_spline, Wstat > all_spline.thresh)
 
- # List consecutive outlier windows
- consec.windows <- grep("-",unlist(strsplit((seqToHumanReadable(all_spline_total_outliers$WindowNumber)),", ")),value=TRUE)
- # Create empty table to add consecutive outlier windows
- consec.w.table <- data.frame()
- # Fill consecutive outlier windows table with entries from general table
- if (length(consec.windows) > 0) { 
-   for (w in 1:length(consec.windows)) {
-    win=consec.windows[w]
-    consec.w.length <- length(unlist(strsplit(win,"-"))[1]:unlist(strsplit(win,"-"))[2])
-    for (k in unlist(strsplit(win,"-"))[1]:unlist(strsplit(win,"-"))[2]) {
-     c.w.t.entry <- subset(all_spline_total_outliers, WindowNumber == k)
-     consec.w.table <- data.frame(rbind(consec.w.table, data.frame(c.w.t.entry)))
-    }
-   }
- }
- 
- # Write consecutive W table
- write.table(x = consec.w.table,
-             file = paste0("GenWin_results/",var,"_consec_windows.tsv"),
-             quote=FALSE,  col.names = T, row.names = FALSE, sep= "\t")
+# # List consecutive outlier windows
+# consec.windows <- grep("-",unlist(strsplit((seqToHumanReadable(all_spline_total_outliers$WindowNumber)),#", ")),value=TRUE)
+# # Create empty table to add consecutive outlier windows
+# consec.w.table <- data.frame()
+# # Fill consecutive outlier windows table with entries from general table
+# if (length(consec.windows) > 0) { 
+#   for (w in 1:length(consec.windows)) {
+#    win=consec.windows[w]
+#    consec.w.length <- length(unlist(strsplit(win,"-"))[1]:unlist(strsplit(win,"-"))[2])
+#    for (k in unlist(strsplit(win,"-"))[1]:unlist(strsplit(win,"-"))[2]) {
+#     c.w.t.entry <- subset(all_spline_total_outliers, WindowNumber == k)
+#     consec.w.table <- data.frame(rbind(consec.w.table, data.frame(c.w.t.entry)))
+#    }
+#   }
+# }
+# 
+# # Write consecutive W table
+# write.table(x = consec.w.table,
+#             file = paste0("GenWin_results/",var,"_consec_windows.tsv"),
+#             quote=FALSE,  col.names = T, row.names = FALSE, sep= "\t")
 
  # Scaffolds:
  scaffolds <- levels(unique(all_spline$scaffold))
@@ -380,14 +387,61 @@ for (n in 1:length(variables)){
   # Save the scaffold plot
   filename <- paste("GenWin_results/", var, "_", chr ,"_bubble_WStat_manhattan.pdf", sep="")
   ggsave(filename)
-  
-  step_plot <- ggplot(chr_spline, aes(x = WindowLength, y = Wstat, order = WindowNumber)) +
-      geom_segment() + 
-      geom_hline(yintercept=all_spline.thresh,linetype="dashed", size=0.5, color="red")
-
  }
 }
 ```
+Draw distribution of window length and Wstat values.
+```{R}
+variables <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", "bio9", "bio10", "bio11", "bio12", "bio13", "bio14", "bio15", "bio16", "bio17", "bio18", "bio19", "jan_depth", "snow_days")
+
+# resume table
+Wstat_resume <- data.frame()
+
+for (n in 1:length(variables)){
+
+ var=variables[n]
+
+ all_spline=read.table(paste0("GenWin_results/",var,"_GenWin_windows.tsv"),h=T)
+
+ MEAN <- mean(as.numeric(all_spline$Wstat), na.rm=T)
+ SD <- sd(as.numeric(all_spline$Wstat), na.rm=T)
+ all_spline.thresh=as.numeric(quantile(all_spline$Wstat,probs=0.999,na.rm=T))
+ max_wstat <- max(all_spline$Wstat, na.rm=T)
+ SD_limit <- MEAN+SD*4
+ outliers_sd <- nrow(subset(all_spline, all_spline$Wstat >= SD_limit))
+ outliers_quantile <- nrow(subset(all_spline, all_spline$Wstat >= all_spline.thresh))
+ 
+ # add values to table
+ Wstat_resume <- data.frame(rbind(Wstat_resume, data.frame(variable = var, Wstat_mean = MEAN,
+                                 Wstat_sd = SD, Wstat_max = max_wstat,
+                                 sd_limit = SD_limit, quantile_limit = all_spline.thresh,
+                                 n_outliers_sd = outliers_sd, n_outliers_quantile = outliers_quantile)))
+ 
+ 
+ hist <- ggplot(all_spline, aes(x = Wstat)) +
+   geom_histogram(bins = 200, color = "black") +
+   #scale_x_continuous(breaks = 0:250*10, limits = c(0, maxDepth_sd*1.5)) +
+   scale_x_continuous() +
+   scale_y_continuous(expand=c(0,0)) +
+   geom_vline(xintercept=SD_limit, linetype="dashed", color="orange", size=0.5) +
+   geom_vline(xintercept=all_spline.thresh, linetype="dashed", color="red", size=0.5) +
+   theme_classic() +
+   theme(text = element_text(size=10))
+ hist
+ # Save the distribution plot
+ filename <- paste("GenWin_results/", var, "_WStat_distribution.pdf", sep="")
+ ggsave(filename)
+ 
+}
+# write Resume table:
+write.table(x = Wstat_resume,
+             file = paste0("GenWin_results/Wstat_resume.tsv"),
+             quote=FALSE,  col.names = T, row.names = FALSE, sep= "\t")
+
+```
+
+
+
 See how many outlier SNPs (BF>20) are present in each outlier window & other exploratory stuff
 ```{R}
 for (n in 1:length(variables)){
@@ -560,5 +614,10 @@ manhplot <- ggplot(all_spline, aes(x = WindowNumber, y = Wstat, color=color)) +
     # X AXIS SCAFFOLD NAMES BELOW
     geom_hline(yintercept=all_spline.thresh,linetype="dashed", size=0.5, color="red")
 manhplot
+
+step_plot <- ggplot(chr_spline, aes(x = WindowLength, y = Wstat, order = WindowNumber)) +
+      geom_segment() + 
+      geom_hline(yintercept=all_spline.thresh,linetype="dashed", size=0.5, color="red")
+
 
 ```

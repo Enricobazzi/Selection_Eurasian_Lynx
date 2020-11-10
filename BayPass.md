@@ -390,3 +390,72 @@ for var in ${varLIST[@]}
   screen -dmS aux_${var}  sh -c "/home/ebazzicalupo/BayPass/baypass_aux_v2.sh ${var}; exec /bin/bash"
 done
 ```
+Download snow results to laptop:
+```
+scp ebazzicalupo@genomics-b.ebd.csic.es:/home/ebazzicalupo/BayPass/OutPut/AUX_snow_days_*_summary_betai.out .
+scp ebazzicalupo@genomics-b.ebd.csic.es:/home/ebazzicalupo/BayPass/OutPut/AUX_jan_depth_*_summary_betai.out .
+
+```
+To plot snow results in R:
+```{R}
+variables <- c("jan_depth", "snow_days")
+
+for (i in 1:length(variables)){
+
+ var <- variables[i]
+
+ snps.table <- data.frame()
+
+ for (n in 1:50){
+  # upload the dataset table:
+  var.snp=read.table(paste0("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/BayPass_OutPut/AUX_", var,"_",n,"_summary_betai.out"),h=T)
+
+  # calculate the database SNP number sequence - 2100553 is the total number of SNPs in all datasets
+  var.snp <- data.frame(var.snp, SNPnum = seq(n, 2100553, by = 50))
+
+  # add the dataset rows to the total snps table
+  snps.table <- rbind(snps.table, var.snp)
+ }
+
+ # order the table based on the SNP number
+ snps.table <- snps.table %>% arrange(SNPnum)
+
+ # Add SNP ID information
+ SNPIDs <- read_tsv("/Users/enricobazzicalupo/Documents/Selection_Eurasian_Lynx/BayPass_OutPut/finalset.maf5pc.SNPIDs", col_names = F)[,2-3] %>%
+    rename("scaffold" =  X2, "position" = X3)
+
+ # Add SNP IDs to the total snps table
+ snps.table <- data.frame(snps.table,SNPIDs)
+
+ # Add chromosome numbers and Odd/Even for colors
+ CHRnumber <- data.frame()
+ for (n in 1:length(unique(snps.table$scaffold))){
+   scaffold_lines <- snps.table %>% filter(scaffold==unique(snps.table$scaffold)[n])
+   if((n %% 2) == 0) {
+    num <- "Even"
+   } else {
+    num <- "Odd"
+   }
+   number <- data.frame(chromosome = rep(n, nrow(scaffold_lines)), colora = num)
+   CHRnumber <- data.frame(rbind(CHRnumber, number))
+ }
+ snps.table <- data.frame(cbind(snps.table, CHRnumber))
+
+ # Plot BF - ADJUST LEGEND AND X axis (show chromosome/scaffold)
+ manhplot <- ggplot(snps.table, aes(x = SNPnum, y = BF.dB., color = colora)) +
+   geom_point(alpha = 0.75, stat = "identity") +
+   scale_color_manual(values= c("Black","Grey")) +
+    # TITLE
+    # LEGEND
+    # X AXIS SCAFFOLD NAMES BELOW
+   geom_hline(yintercept=20,linetype="dashed", size=0.5, color="red")
+
+ # save plot
+ ggsave(filename = paste("BayPass_results/",var,"_manhattanplot.pdf", sep=""), plot=manhplot, height=8, width = 12, units ="cm")
+
+ # Outliers Table
+ snps.outliers <- subset(snps.table, BF.dB. > 20) %>%
+   select(scaffold, position, SNPnum, BF.dB.)
+ write.table(x = snps.outliers,file = paste0("BayPass_results/",var,"_outliers_SNPs.tsv"),quote=FALSE,  col.names = T, row.names = FALSE, sep= "\t")
+}
+```

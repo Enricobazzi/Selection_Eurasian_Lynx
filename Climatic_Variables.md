@@ -220,3 +220,44 @@ Finally I can copy the final table to the BayPass folder in the EBD genomics ser
 ```
 scp WorldClim_table.tsv ebazzicalupo@genomics-b.ebd.csic.es:~/BayPass/Covariate_Data/
 ```
+To chek how populations are similar to each other for the variables:
+```{R}
+library(RColorBrewer)
+library (viridis)
+
+cols <- c("ca"="#B8860b",
+          "ur"="#0F4909", 
+          "ki"=viridis_pal()(5)[1], 
+          "la"=brewer.pal(12,"Paired")[3], 
+          "tu"=brewer.pal(12,"Paired")[8], 
+          "mo"=brewer.pal(12,"Paired")[7], 
+          "vl"=brewer.pal(12,"Paired")[5], 
+          "ya"=brewer.pal(12,"Paired")[6])
+
+data <- read_delim("WorldClim_table.tsv", col_names = T, delim = '\t')
+data_long <- data%>%rename(variable=pop)%>%pivot_longer(cols=ca:ya, names_to="pop")
+
+variables <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", "bio9", "bio10", "bio11", "bio12", "bio13", "bio14", "bio15", "bio16", "bio17", "bio18", "bio19")
+
+for (i in 1:length(variables)){
+
+ var <- variables[i]
+
+ vartabletable <- data_long %>% filter(variable==var)%>%
+  mutate(pop=factor(pop, levels=c("ca","ki","la","ur","mo","tu","vl","ya")))
+ 
+ ggplot(vartabletable, aes(x=pop, y=value, color=pop))+
+  geom_point(size=10, stat='identity')+
+  scale_color_manual(values=cols) +
+  theme_bw()
+ 
+ ggsave(paste0(var,"_values_dots.pdf"), path = "PCA_outliers/",
+        width=25,height=25,units="cm")
+}
+
+ggplot(data_long, aes(x=pop, y=value, color=pop))+
+  geom_point(size=1, stat='identity')+
+  scale_color_manual(values=cols) +
+  theme_bw()+facet_wrap(vars(variable), scales="free")
+
+```
