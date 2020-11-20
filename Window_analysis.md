@@ -35,7 +35,8 @@ bedtools intersect -a all_windows.bed -b superoutlier_region.bed -c | awk -F "\t
 
 # remove superoutlier region windows and add a single window for the whole region
 bedtools subtract -a all_windows.bed -b superoutlier_region_windows.bed > all_windows_onesuper.bed
-cat superoutlier_region.bed >> all_windows_onesuper.bed
+paste <(head -1 superoutlier_region_windows.bed | cut -f 1,2) \
+<(tail -1 superoutlier_region_windows.bed | cut -f 3) >> all_windows_onesuper.bed
 sort -k1,1 -k2,2n all_windows_onesuper.bed | uniq > tmp && mv tmp all_windows_onesuper.bed
 ```
 Get small windowset by merging overlapping windows:
@@ -43,7 +44,7 @@ Get small windowset by merging overlapping windows:
 # Use bedtools merge (mergeBed) to merge overlapping features into single feature
 mergeBed -i all_windows_onesuper.bed > small_windowset.bed
 ```
-This has generated a set of 892 windows.
+This has generated a set of 888 windows.
 
 To get the big windowset using bedops --partition (I need to install it first):
 ```
@@ -140,9 +141,8 @@ plot(ca2)
 
 ca2_data_frame <- data.frame(var=row.names(ca2$rowcoord[,1:2]), ca2$rowcoord[,1:2])
 ca1_data_frame <- data.frame(var=1:1530, ca1$rowcoord[,1:2])
+
 # plot PCA with labels
-
-
 winplot <- ggplot(data = ca1_data_frame, aes(x = Dim1, y = Dim2)) +
   geom_hline(yintercept = 0, colour = "black") +
   geom_vline(xintercept = 0, colour = "black") +
@@ -167,7 +167,7 @@ library(bipartite)
 wnodf=networklevel(matrix1, index="weighted NODF")
 visweb(matrix1, type="nested")
 
-modreal <- computeModules(web = matrix1, method = "Beckett")
+modreal <- computeModules(web = matrix2, method = "Beckett")
 #modreal_max <- metaComputeModules(moduleObject = matrix1, method = "Beckett", N=10)
 
 modreal@likelihood
@@ -178,11 +178,11 @@ modinfo <- listModuleInformation(modreal)
 Plot Unipartite matrix (number windows shared between variables)
 ```{R}
 library(igraph)
-unimat <- as.one.mode(matrix1, project = "higher")
+unimat <- as.one.mode(matrix2, project = "higher")
 
 igraph.mat <- graph_from_adjacency_matrix(unimat, diag = F, mode = "undirected", weighted = T)
 E(igraph.mat)
-plot(igraph.mat, edge.width = (E(igraph.mat)$weight)/30, layout = layout_nicely, vertex.label.color="black", vertex.color="lightblue", vertex.label.cex=0.75)
+plot(igraph.mat, edge.width = (E(igraph.mat)$weight)/30, layout = layout_nicely, vertex.label.color="black", vertex.color="lightblue", vertex.label.cex=0.5)
 
 visweb(unimat)
 ```
@@ -210,5 +210,113 @@ winplot <- plot(mca,
      cex = 0.8,                                    
      autoLab = "yes")
 ggplotly(winplot, tooltip = "all")
+```
+
+Having run different analyses with binary results for each variable, I want to try to get continuous values instead. I will do this by calculating the weighted mean of the Wstat for each window in the small windowset, which contains larger windows created by collapsing all windows which have been calculated as outlier for any variable (see above).
+
+To calculate the weighted mean for each window, I also need to have a BED file of all windows for each variable, with its Wstat value as 4th column (after normal chr, start, end of a BED file). This is generated from the TSV of GenWin results for all windows:
+```
+for table in $(ls *_windows.tsv)
+ do
+  name=($(echo ${table} | sed 's/_GenWin_windows.tsv//g'))
+  echo "${name}"
+  tail -n +2 ${table} | awk '{print $6, $1, $2, $5}' | tr ' ' '\t' |
+  sort -k1,1 -k2,2n | grep -v "NA" > ${name}_GenWin_windows.bed
+done
+```
+Intersect the windowset with bed file calculating the wx and w values for the weighted mean formula for which the weighted mean is equal to:
+∑ weight (w) * value (x) ÷ ∑ weight (w)
+or the sum of values multiplied by their weight divided by the sum of weights:
+```
+varlist=($(ls *_GenWin_windows_outliers.bed | sed 's/_GenWin_windows_outliers.bed//'))
+
+for var in ${varlist[@]}
+ do
+  echo ${var}
+
+  bedtools intersect -a small_windowset.bed -b ${var}_GenWin_windows.bed -wo |
+  awk '{print $1, $2, $3, $7*($8/10000), $8/10000}' | sort -k1,1 -k2,2n | tr ' ' '\t' \
+  > ${var}_small_windowset_weights.bed
+done
+```
+Now to calculate the weighted mean of Wstat values for each window in the windowset:
+```
+for var in ${varlist[@]}
+ do
+  echo ${var}
+  windows=($(cut -f1-3 ${var}_small_windowset_weights.bed | tr '\t' '-' | uniq))
+  touch ${var}_small_windowset_wmeans.bed
+  for window in ${windows[@]}
+    do
+     win=($(echo ${window} | tr '-' '\t'))
+     grep -f <(echo ${win[@]} | tr ' ' '\t') ${var}_small_windowset_weights.bed |
+     awk '{ wx += $4; w += $5 } END { print $1, $2, $3, wx/w; }' | uniq | tr ' ' '\t' \
+     >> ${var}_small_windowset_wmeans.bed
+  done
+done
+```
+Download data to laptop for analysis with R:
+```
+scp ebazzicalupo@genomics-b.ebd.csic.es:/home/ebazzicalupo/GenWin_results/*_small_windowset_wmeans.bed ~/Documents/Selection_Eurasian_Lynx/Window_analysis
+```
+Prepare R:
+```{R}
+library(tidyverse)
+library(stats)
+variables <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", "bio9", "bio10", "bio11", "bio12", "bio13", "bio14", "bio15", "bio16", "bio17", "bio18", "bio19", "combined_differentiation", "snow_days", "jan_depth")
+```
+Upload the results into R creating a matrix
+```{R}
+for (i in 1:length(variables)){
+
+  var=variables[i]
+  intersect <- read_tsv(paste0("Window_analysis/", var, "_small_windowset_wmeans.bed"),
+           col_names = F) %>%
+    rename("scaffold" =  X1, "start" = X2, "end" = X3)
+
+  if (i==1){
+    names(intersect)[names(intersect) == "X4"] <- var
+    matrix <- unite(intersect, "window", scaffold, start, end, sep="-")
+  } else {
+    colu <- intersect$X4
+    matrix <- cbind(matrix, colu)
+    names(matrix)[names(matrix) == "colu"] <- var
+  }
+}
+# create final matrix (ROWS <- if I want row names)
+ROWS <- matrix$window
+matrix1 <- as.matrix(data.frame(matrix[-1])) # columns = variables
+matrix2 <- t(matrix1) # columns = windows
+```
+Calculate euclidian distance between windows from matrix1 which has them as rows and apply Ward's Hierarchical Clustering algorithm to find groups
+```{R}
+# Groups of windows based on association with variables
+eu_dist1 <- dist(matrix1, method = "euclidean")
+clust1 <- hclust(eu_dist1, method = "ward.D")
+membs1 <- cutree(clust1, k=7)
+plot(clust1, hang = -1, cex = 0.1, labels = FALSE, ylab = NULL)
+# order of groups in dendrogram is:
+# 1, 7, 2, 5, 3, 4, 6
+
+lala <- data.frame(cbind(matrix, membs1))
+lala2 <- lala %>% subset(., membs1 == 6)
+for(i in 2:(ncol(lala2)-1)) {
+  print(colnames(lala2)[i])
+  print(mean(lala2[,i]))
+}
+
+# Also find groups of variables based on the GEA results
+eu_dist2 <- dist(matrix2, method = "euclidean")
+clust2 <- hclust(eu_dist2, method = "ward.D")
+hist(clust2$height, breaks = 100)
+membs2 <- cutree(clust2, k=7)
+plot(clust2, hang = -1, cex = 0.6, ylab = NULL)
+```
+Use pheatmap to draw a heatmap of the clusters of variables and windows
+```{R}
+library(pheatmap)
+library(viridis)
+pheatmap(matrix2, scale = "column", cluster_rows = clust2, cluster_cols = clust1,
+         color = viridis(17, option =  "B"), cutree_cols = 7)
 
 ```
