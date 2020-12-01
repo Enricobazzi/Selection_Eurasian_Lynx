@@ -15,6 +15,7 @@ For this I will generate two lists of all possible outlier windows. One where I 
 Working on genomics-b server in the GenWin_results folder.
 
 Get dataset of all windows and unite haploblock into one window.
+NOTE: I also have added a version of ALL windows WITHOUT the combined_differentiation results
 ```
 cd ~/GenWin_results
 
@@ -38,11 +39,32 @@ bedtools subtract -a all_windows.bed -b superoutlier_region_windows.bed > all_wi
 paste <(head -1 superoutlier_region_windows.bed | cut -f 1,2) \
 <(tail -1 superoutlier_region_windows.bed | cut -f 3) >> all_windows_onesuper.bed
 sort -k1,1 -k2,2n all_windows_onesuper.bed | uniq > tmp && mv tmp all_windows_onesuper.bed
+
+## WITHOUT the combined_differentiation results
+
+# get all windows WITHOUT combined differentiation
+cat [^c]*_GenWin_windows_outliers.bed | sort -k1,1 -k2,2n | uniq > all_windows_nocomb.bed
+
+# get windows in superoutlier region
+bedtools intersect -a all_windows_nocomb.bed -b superoutlier_region.bed -c | awk -F "\t" '{if($4 == 1){print}}' \
+> superoutlier_region_windows_nocomb.bed
+
+# remove superoutlier region windows and add a single window for the whole region
+bedtools subtract -a all_windows_nocomb.bed -b superoutlier_region_windows_nocomb.bed \
+> all_windows_nocomb_onesuper.bed
+paste <(head -1 superoutlier_region_windows_nocomb.bed | cut -f 1,2) \
+<(tail -1 superoutlier_region_windows_nocomb.bed | cut -f 3) >> all_windows_nocomb_onesuper.bed
+sort -k1,1 -k2,2n all_windows_nocomb_onesuper.bed | uniq > tmp && mv tmp all_windows_nocomb_onesuper.bed
+
 ```
 Get small windowset by merging overlapping windows:
 ```
 # Use bedtools merge (mergeBed) to merge overlapping features into single feature
 mergeBed -i all_windows_onesuper.bed > small_windowset.bed
+
+## WITHOUT the combined_differentiation results
+mergeBed -i all_windows_nocomb_onesuper.bed > small_windowset_nocomb.bed
+
 ```
 This has generated a set of 888 windows.
 
@@ -52,6 +74,9 @@ conda create -n bedops
 conda activate bedops
 conda install -c bioconda bedops
 bedops --partition all_windows_onesuper.bed > big_windowset.bed
+
+## WITHOUT the combined_differentiation results
+bedops --partition all_windows_nocomb_onesuper.bed > big_windowset_nocomb.bed
 ```
 This has generated a set of 1458 windows.
 
@@ -216,6 +241,8 @@ Having run different analyses with binary results for each variable, I want to t
 
 To calculate the weighted mean for each window, I also need to have a BED file of all windows for each variable, with its Wstat value as 4th column (after normal chr, start, end of a BED file). This is generated from the TSV of GenWin results for all windows:
 ```
+cd ~/GenWin_results
+
 for table in $(ls *_windows.tsv)
  do
   name=($(echo ${table} | sed 's/_GenWin_windows.tsv//g'))
@@ -238,6 +265,18 @@ for var in ${varlist[@]}
   awk '{print $1, $2, $3, $7*($8/10000), $8/10000}' | sort -k1,1 -k2,2n | tr ' ' '\t' \
   > ${var}_small_windowset_weights.bed
 done
+
+## WITHOUT the combined_differentiation results
+varlist=($(ls *_GenWin_windows_outliers.bed | sed 's/_GenWin_windows_outliers.bed//' | grep -v "combined_differentiation"))
+
+for var in ${varlist[@]}
+ do
+  echo ${var}
+
+  bedtools intersect -a small_windowset_nocomb.bed -b ${var}_GenWin_windows.bed -wo |
+  awk '{print $1, $2, $3, $7*($8/10000), $8/10000}' | sort -k1,1 -k2,2n | tr ' ' '\t' \
+  > ${var}_small_windowset_weights_nocomb.bed
+done
 ```
 Now to calculate the weighted mean of Wstat values for each window in the windowset:
 ```
@@ -254,16 +293,42 @@ for var in ${varlist[@]}
      >> ${var}_small_windowset_wmeans.bed
   done
 done
+
+## WITHOUT the combined_differentiation results
+for var in ${varlist[@]}
+ do
+  echo ${var}
+  windows=($(cut -f1-3 ${var}_small_windowset_weights_nocomb.bed | tr '\t' '-' | uniq))
+  touch ${var}_small_windowset_wmeans_nocomb.bed
+  for window in ${windows[@]}
+    do
+     win=($(echo ${window} | tr '-' '\t'))
+     grep -f <(echo ${win[@]} | tr ' ' '\t') ${var}_small_windowset_weights_nocomb.bed |
+     awk '{ wx += $4; w += $5 } END { print $1, $2, $3, wx/w; }' | uniq | tr ' ' '\t' \
+     >> ${var}_small_windowset_wmeans_nocomb.bed
+  done
+done
 ```
 Download data to laptop for analysis with R:
 ```
 scp ebazzicalupo@genomics-b.ebd.csic.es:/home/ebazzicalupo/GenWin_results/*_small_windowset_wmeans.bed ~/Documents/Selection_Eurasian_Lynx/Window_analysis
+
+## WITHOUT the combined_differentiation results
+scp ebazzicalupo@genomics-b.ebd.csic.es:/home/ebazzicalupo/GenWin_results/*_small_windowset_wmeans_nocomb.bed ~/Documents/Selection_Eurasian_Lynx/Window_analysis
+
 ```
 Prepare R:
 ```{R}
 library(tidyverse)
 library(stats)
+library(pheatmap)
+library(viridis)
+
 variables <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", "bio9", "bio10", "bio11", "bio12", "bio13", "bio14", "bio15", "bio16", "bio17", "bio18", "bio19", "combined_differentiation", "snow_days", "jan_depth")
+
+## WITHOUT the combined_differentiation results
+variables <- c("bio1", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", "bio9", "bio10", "bio11", "bio12", "bio13", "bio14", "bio15", "bio16", "bio17", "bio18", "bio19", "snow_days", "jan_depth")
+
 ```
 Upload the results into R creating a matrix
 ```{R}
@@ -283,12 +348,31 @@ for (i in 1:length(variables)){
     names(matrix)[names(matrix) == "colu"] <- var
   }
 }
+
+## WITHOUT the combined_differentiation results
+for (i in 1:length(variables)){
+
+  var=variables[i]
+  intersect <- read_tsv(paste0("Window_analysis/", var, "_small_windowset_wmeans_nocomb.bed"),
+           col_names = F) %>%
+    rename("scaffold" =  X1, "start" = X2, "end" = X3)
+
+  if (i==1){
+    names(intersect)[names(intersect) == "X4"] <- var
+    matrix <- unite(intersect, "window", scaffold, start, end, sep="-")
+  } else {
+    colu <- intersect$X4
+    matrix <- cbind(matrix, colu)
+    names(matrix)[names(matrix) == "colu"] <- var
+  }
+}
+
 # create final matrix (ROWS <- if I want row names)
 ROWS <- matrix$window
 matrix1 <- as.matrix(data.frame(matrix[-1])) # columns = variables
 matrix2 <- t(matrix1) # columns = windows
 ```
-Calculate euclidian distance between windows from matrix1 which has them as rows and apply Ward's Hierarchical Clustering algorithm to find groups
+Calculate euclidian distance between windows from matrix1 which has them as rows and apply Ward's Hierarchical Clustering algorithm to find groups. Create a table for each group with its windows
 ```{R}
 # Groups of windows based on association with variables
 eu_dist1 <- dist(matrix1, method = "euclidean")
@@ -296,27 +380,76 @@ clust1 <- hclust(eu_dist1, method = "ward.D")
 membs1 <- cutree(clust1, k=7)
 plot(clust1, hang = -1, cex = 0.1, labels = FALSE, ylab = NULL)
 # order of groups in dendrogram is:
-# 1, 7, 2, 5, 3, 4, 6
-
-lala <- data.frame(cbind(matrix, membs1))
-lala2 <- lala %>% subset(., membs1 == 6)
-for(i in 2:(ncol(lala2)-1)) {
-  print(colnames(lala2)[i])
-  print(mean(lala2[,i]))
-}
+# 1, 7, 2, 5, 3, 4, 6 with comb
+# 4, 6, 3, 5, 2, 1, 7 without comb
 
 # Also find groups of variables based on the GEA results
 eu_dist2 <- dist(matrix2, method = "euclidean")
 clust2 <- hclust(eu_dist2, method = "ward.D")
-hist(clust2$height, breaks = 100)
-membs2 <- cutree(clust2, k=7)
+membs2 <- cutree(clust2, k=6)
 plot(clust2, hang = -1, cex = 0.6, ylab = NULL)
+
+# write a table for each window group:
+w_members_all <- data.frame(cbind(matrix, membs1))
+for (i in 1:7){
+ w_members <- w_members_all %>% subset(., membs1 == i)
+
+ write.table(x = w_members,
+            file = paste0("Window_analysis/g", i ,"_windows.tsv"),
+            quote=FALSE,  col.names = T, row.names = FALSE, sep= "\t")
+}
 ```
 Use pheatmap to draw a heatmap of the clusters of variables and windows
 ```{R}
-library(pheatmap)
-library(viridis)
 pheatmap(matrix2, scale = "column", cluster_rows = clust2, cluster_cols = clust1,
          color = viridis(17, option =  "B"), cutree_cols = 7)
+```
+Copy the window groups tables to genomics-b
+```
+scp Documents/Selection_Eurasian_Lynx/Window_analysis/g*_windows.tsv ebazzicalupo@genomics-b.ebd.csic.es:/home/ebazzicalupo/GenWin_results/Window_analysis
+```
+Transform the window group tables into BED files:
+```
+cd ~/GenWin_results/Window_analysis
 
+for table in $(ls g*_windows.tsv)
+ do
+  name=($(echo ${table} | sed 's/_windows.tsv//g'))
+  echo "${name}"
+  tail -n +2 ${table} | cut -f1 | tr '-' '\t' |
+  sort -k1,1 -k2,2n > ${name}_windows.bed
+done
+```
+On genomics-b run a PCA on each group of windows (see PCA_outliers.md)
+
+Intersect with the reference genome annotation to see list of genes in each group of windows:
+```
+cd ~/GenWin_results/Window_analysis
+
+# Intersect beds with gff3 file:
+for bed in $(ls *_windows.bed)
+ do
+  name=($(echo ${bed} | sed 's/_windows.bed//g'))
+  echo ${name}
+  bedtools intersect -wa -wb -a ${bed} \
+  -b /GRUPOS/grupolince/reference_genomes/lynx_canadensis/lc4.NCBI.nr_main.gff3 \
+  > ${name}.intersect
+done
+
+# get gene list for each variable:
+for intersect in $(ls *.intersect)
+ do
+  name=($(echo ${intersect} | sed 's/.intersect//g'))
+  echo ${name}
+  grep -Eo "gene=.*;" ${intersect} | cut -d';' -f1 | sort -u > ${name}.genes
+done
+```
+And for the whole small windowset without the combined differentiation
+```
+bedtools intersect -wa -wb -a ../small_windowset_nocomb.bed \
+-b /GRUPOS/grupolince/reference_genomes/lynx_canadensis/lc4.NCBI.nr_main.gff3 \
+> small_windowset_nocomb.intersect
+
+grep -Eo "gene=.*;" small_windowset_nocomb.intersect | cut -d';' -f1 | sort -u \
+> small_windowset_nocomb.genes
 ```

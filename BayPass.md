@@ -459,3 +459,23 @@ for (i in 1:length(variables)){
  write.table(x = snps.outliers,file = paste0("BayPass_results/",var,"_outliers_SNPs.tsv"),quote=FALSE,  col.names = T, row.names = FALSE, sep= "\t")
 }
 ```
+For the other variables data from Krystoff, I took the tables he sent and modified them to meet the input format for BayPass. As Caucasus and Mongolia are made of different subpopulations, the avarage values are used. For skull size data I will run the analysis on male, female and average values.
+
+I will again analyze with BayPass AUX model using the same script (baypass_aux_v2.sh).
+```
+cd /home/ebazzicalupo/BayPass
+varLIST=($(cut -f1 Covariate_Data/other_variables.txt | grep -v "variable"))
+
+for var in ${varLIST[@]}
+ do
+  echo "creating ${var} table"
+  grep -w "${var}" Covariate_Data/Snow_table.tsv | cut -f2-  | tr '\t' ' ' \
+  > Covariate_Data/${var}_data.txt
+done
+
+for var in ${varLIST[@]}
+ do
+  echo "analyzing association with ${var}"
+  screen -dmS aux_${var}  sh -c "/home/ebazzicalupo/BayPass/baypass_aux_v2.sh ${var}; exec /bin/bash"
+done
+```

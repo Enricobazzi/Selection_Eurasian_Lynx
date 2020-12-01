@@ -1,0 +1,8 @@
+variable	ca	ki	la	mo	tu	ur	vl	ya
+medium_size_deer	12.8	0	85.7	48.1	48.2	21	62.5	7.5
+large_size_deer	21	2.8	0	27.2	20.8	0.9	35.7	1.8
+hares	39.15	60.6	10.7	24.7	10.6	31.6	1.8	75.9
+other	31.6	36.6	3.6	0	20.4	46.5	0	14.8
+male_condylobasal_legth	13.09	13.95	14.42	14.21	14.3	14.18	14.21	14.88
+female_condylobasal_legth	12.52	13.55	14.03	13.62	13.45	13.24	13.24	13.16
+average_condylobasal_legth	12.805	13.75	14.225	13.915	13.875	13.71	13.725	14.02
