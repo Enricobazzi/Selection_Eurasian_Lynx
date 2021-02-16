@@ -261,3 +261,68 @@ ggplot(data_long, aes(x=pop, y=value, color=pop))+
   theme_bw()+facet_wrap(vars(variable), scales="free")
 
 ```
+
+In order to run RDA using individual samples genotypes and I will generate a table with avarage values of each climatic variable for a buffer around the coordinates of each sample.
+
+To prepare R for this:
+```{R}
+library(raster)
+library(tidyverse)
+library(grDevices)
+library(rgeos)
+library(geobuffer)
+```
+I also prepared a table with the coordinates of each sample. Samples without coordinates (cr_0211 and ba_0233) will not be included in the RDA. I will also remove the "bad" Balkans samples which will also not be included in the RDA (c_ll_ba_0216, h_ll_ba_0214 and h_ll_ba_0215).
+```{R}
+# first load all environmental data:
+worldclim <- getData("worldclim", var = "bio", res = 10)
+# and all coordinates data:
+coord_table <- read_delim("~/Dropbox/LL_LC_LR_Databases/LL_coords/csv_LL_selection_coords_wholeset.csv", col_names = T, delim = ',') 
+# define samples
+samples <- coord_table$id %>% unique
+# remove bad samples and ones without coordinates
+elements_2_remove <- c("c_ll_cr_0211", "c_ll_ba_0233","c_ll_ba_0216", 
+                       "h_ll_ba_0214", "h_ll_ba_0215")
+samples = samples[!(samples %in% elements_2_remove)]
+```
+Now loop through all samples in order to create a table with all variable values in a buffer of 100km around the samples
+```{R}
+# create a table to bind to the rest of the calculated data
+table <- data.frame()
+
+# now lets loop though all samples:
+for (i in 1:length(samples)){
+  # define sample
+  sample <- samples[i]
+  # get population coordinates
+  coord_sample <- coord_table %>% filter(coord_table$id == sample)
+  # in a dataframe with columns x and y
+  coords <- data.frame(x=as.numeric(coord_sample$longitude),
+                       y=as.numeric(coord_sample$latitude))
+  # get buffer around coordinates
+  buff <- geobuffer_pts(xy = coords, dist_m = 100000)
+  buffer <- buff[1] # first layer only (though I guess with 1 sample it's useless)
+  gArea(buffer)
+  
+  row <- data.frame(sample=coord_sample$id)
+  for (k in 1:nlayers(worldclim)){
+    # subset for just one biovariable
+    DEM <- worldclim[[k]]
+    names(DEM) # print the name of the biovariable
+
+    # Get mean of biovariable value of all points within the polygon
+    means <- raster::extract(
+      DEM,                  # raster layer
+      buffer,               # SPDF with centroids for buffer
+      fun=mean,             # get the mean
+      na.rm = TRUE,         # remove NAs
+      df=TRUE)              # return a dataframe
+  
+    # add the mean to the population table
+    row <- cbind(row, data.frame(means[2]))
+  }
+table <- rbind(table, row)
+}
+# Write final table
+write.table(x = table, file = "WorldClim_table_persample.tsv", quote=FALSE, col.names = T, row.names = FALSE, sep= "\t")
+```

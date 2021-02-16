@@ -402,7 +402,7 @@ for (i in 1:7){
 Use pheatmap to draw a heatmap of the clusters of variables and windows
 ```{R}
 pheatmap(matrix2, scale = "column", cluster_rows = clust2, cluster_cols = clust1,
-         color = viridis(17, option =  "B"), cutree_cols = 7)
+         color = viridis(17, option =  "B"), cutree_cols = 8)
 ```
 Copy the window groups tables to genomics-b
 ```
@@ -426,7 +426,7 @@ Intersect with the reference genome annotation to see list of genes in each grou
 ```
 cd ~/GenWin_results/Window_analysis
 
-# Intersect beds with gff3 file:
+# Intersect beds with gff3 file:
 for bed in $(ls *_windows.bed)
  do
   name=($(echo ${bed} | sed 's/_windows.bed//g'))

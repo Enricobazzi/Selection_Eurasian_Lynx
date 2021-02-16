@@ -17,6 +17,7 @@ library(rgdal)
 library(geobuffer)
 library(grDevices)
 library(rgeos)
+library(sf)
 ```
 As the coordinate system of the snow data is different from the one of the samples, I convert the population polygons as shape files, import them into qGis and convert the coordinate system there (coulnd't find an easy way to do it in R although there probably is).
 Create a shape file for each population's polygon
@@ -63,7 +64,6 @@ shapefile(SPDF, filename=paste0("Snow_data_daily/Tuva_SPDF_shape.shp"))
 After converting the polygon coordinates I can import the new shapefiles into R and extract the avarage snow depth of each day of each year for each population
 ```{R}
 world <- readOGR("/Users/enricobazzicalupo/Dropbox/LL_LC_LR_Databases/Snow_data_analysis/world_polar_stereographic/world_polar_stereographic.shp")
-
 coord_table <- read_delim("~/Dropbox/LL_LC_LR_Databases/LL_coords/samples_selection.csv", col_names = T, delim = ',')
 
 # define populations
@@ -188,5 +188,106 @@ ggplot(snow_days, aes(x=pop, y=value, color=pop))+
   theme_bw()
 ggsave("snow_days_values_dots.pdf", path = "PCA_outliers/",
         width=25,height=25,units="cm")
+```
 
+In order to run RDA using individual samples genotypes and I will generate a table with avarage values of each snow variable for a buffer around the coordinates of each sample.
+
+To prepare R for this:
+```{R}
+library(raster)
+library(tidyverse)
+library(grDevices)
+library(rgeos)
+library(geobuffer)
+library(rgdal)
+library(sf)
+```
+I also prepared a table with the coordinates of each sample. Samples without coordinates (cr_0211 and ba_0233) will not be included in the RDA. I will also remove the "bad" Balkans samples which will also not be included in the RDA (c_ll_ba_0216, h_ll_ba_0214 and h_ll_ba_0215).
+
+Using st_transform from the package sf I can convert my buffer's (spatial polygon) coordinate system to the snow data's coordinate system directly in R (no need to pass through qGis like above). I will generate a table with avarage snow depth of each sample for each day from 1999 to 2019 (my snow data).
+```{R}
+# Load coordinates
+coord_table <- read_delim("~/Dropbox/LL_LC_LR_Databases/LL_coords/csv_LL_selection_coords_wholeset.csv", col_names = T, delim = ',') 
+# define samples
+samples <- coord_table$id %>% unique
+# remove bad samples and ones without coordinates
+elements_2_remove <- c("c_ll_cr_0211", "c_ll_ba_0233","c_ll_ba_0216", 
+                       "h_ll_ba_0214", "h_ll_ba_0215")
+samples = samples[!(samples %in% elements_2_remove)]
+
+# Loop through all samples:
+for (i in 1:length(samples)){
+  # define sample
+  sample <- samples[i]
+  # get population coordinates
+  coord_sample <- coord_table %>% filter(coord_table$id == sample)
+  # in a dataframe with columns x and y
+  coords <- data.frame(x=as.numeric(coord_sample$longitude),
+                       y=as.numeric(coord_sample$latitude))
+  # get buffer around coordinates
+  buff <- geobuffer_pts(xy = coords, dist_m = 100000)
+  buffer <- buff[1] # first layer only (though I guess with 1 sample it's useless)
+  # transform polygon to snow data coordinates system
+  buffer2 <- st_transform(as(buffer, "sf"), crs = "+proj=stere +lat_0=90 +lat_ts=60 +lon_0=10 +k=1 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+ 
+  TABLE <- data.frame()
+  for (y in 1999:2019){
+  # Get data for year
+  data <- stack(paste0("Snow_data_daily/cmc_sdepth_dly_", y, "_v01.2.tif"))
+  for (k in 1:nlayers(data)){
+   # subset for just one month
+   DEM <- data[[k]]
+   # Get mean of value of all points within the polygon
+   means <- raster::extract(
+                   DEM,                  # raster layer
+                   buffer2,             # polygon of population
+                   fun=mean,             # get the mean
+                   na.rm = TRUE,         # remove NAs
+                   df=TRUE)              # return a dataframe
+ 
+   # add the mean to the population table
+   snow_level <- means[[2]][1]
+   day_data <- data.frame(sample=samples[i], year=y, day=k, mean_snow=snow_level)
+   TABLE <- data.frame(rbind(TABLE,day_data))
+     }
+   }
+   write.table(x = TABLE, 
+               file = paste0("Snow_data_daily/",samples[i],"_snow_daily_means.tsv"),
+               quote=FALSE, col.names = T, row.names = FALSE, sep= "\t")
+}
+```
+Now to get per sample snow_days and jan_depth:
+```{R}
+coord_table <- read_delim("~/Dropbox/LL_LC_LR_Databases/LL_coords/csv_LL_selection_coords_wholeset.csv", col_names = T, delim = ',')
+# define populations
+samples <- coord_table$id %>% unique
+# remove bad samples and ones without coordinates
+elements_2_remove <- c("c_ll_cr_0211", "c_ll_ba_0233","c_ll_ba_0216", 
+                       "h_ll_ba_0214", "h_ll_ba_0215")
+samples = samples[!(samples %in% elements_2_remove)]
+
+snow_data <- data.frame()
+for (i in 1:length(samples)){
+  # define population
+  sample=samples[i]
+  # load population daily snow data
+  sam_snow_daily <- read_delim(paste0("Snow_data_daily/",sample,"_snow_daily_means.tsv"), 
+                               col_names = T, delim = '\t')
+  sam_snow_yearly <- data.frame()
+  for (y in 1999:2019){
+    # january mean depth for year
+    sam_snow_january <- subset(sam_snow_daily, day<32 & year==y)
+    jan_mean_row <- data.frame(year = y, c1 = mean(sam_snow_january$mean_snow))
+    # number of snow days for year
+    sam_snow_days <- subset(sam_snow_daily, mean_snow>0 & year==y)
+    snow_days_row <- data.frame(c2 = length(sam_snow_days$mean_snow))
+    sam_snow_yearly <- data.frame(rbind(sam_snow_yearly, cbind(jan_mean_row, snow_days_row)))
+  }
+  snow_data <- data.frame(rbind(snow_data, 
+                                data.frame(sample=sample,jan_depth=mean(sam_snow_yearly$c1),
+                                                 snow_days=mean(sam_snow_yearly$c2))))
+}
+write.table(x = snow_data,
+            file = "Snow_table_persample.tsv", quote=FALSE,
+            col.names = T, row.names = FALSE, sep= "\t")
 ```

@@ -3,9 +3,9 @@ library(tidyverse)
 library("Hmisc")
 library(corrplot)
 library(viridis)
-varmatrix <- read_tsv("WorldClim_table.tsv") %>% column_to_rownames(., var="pop")
-snowdata <- read_tsv("Snow_table.tsv") %>% column_to_rownames(., var="variable")
-varmatrix <- rbind(varmatrix, snowdata)
+varmatrix <- read_tsv("WorldClim_table_persample.tsv") %>% column_to_rownames(., var="sample")
+snowdata <- read_tsv("Snow_table_persample.tsv") %>% column_to_rownames(., var="sample")
+varmatrix2 <- cbind(varmatrix, snowdata)
 
 varmatrix2 <- t(as.matrix(varmatrix))
 
@@ -18,8 +18,8 @@ corplo3 <- cor.mtest(varmatrix2, conf.level = 0.95)
 corrplot(corplo2, p.mat = corplo3$p, type = "upper", sig.level = 0.5)
 
 clust2 <- hclust(as.dist(1 - corplo2), method = "ward.D")
-membs <- cutree(clust2, k=6)
-plot(clust, hang = -1, cex = 0.6, ylab = NULL)
+membs <- cutree(clust2, k=10)
+plot(clust2, hang = -1, cex = 0.6, ylab = NULL)
 
 
 # PCA of variables

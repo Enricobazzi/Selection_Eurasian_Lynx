@@ -246,9 +246,58 @@ for bed in $(ls ~/GenWin_results/small_windowset_nocomb.bed)
   --make-bed --pca --out ${name}
 done
 ```
+I also run PCA on neutral set of windows (see RDA for range and samplestoremove files), the combined differentiation and the haploblock (superoutlier) using ALL samples:
+```
+# NEUTRAL
+cd ~/GenWin_results/Window_analysis
+name=12k10k_neutral
+VCF=/home/ebazzicalupo/BayPass/VCF/ll_wholegenome_LyCa_ref.sorted.filter7.vcf
+
+plink_1.9 --vcf ${VCF} --double-id --allow-extra-chr --set-missing-var-ids @:# \
+--extract range /home/ebazzicalupo/RDA/${name}.range \
+--remove /home/ebazzicalupo/RDA/samplestoremove.txt --geno 0.001 \
+--make-bed --pca --out ${name}
+
+# COMBINED DIFFERENTIATION
+cd ~/GenWin_results/Window_analysis
+name=combined_differentiation
+VCF=/home/ebazzicalupo/BayPass/VCF/ll_wholegenome_LyCa_ref.sorted.filter7.vcf
+bed=/home/ebazzicalupo/GenWin_results/combined_differentiation_GenWin_windows_outliers.nosuper.bed
+name=combined_differentiation
+nlines=($(wc -l < ${bed}))
+paste ${bed} <(yes ${name} | head -${nlines}) > ${name}_range
+
+plink_1.9 --vcf ${VCF} --double-id --allow-extra-chr --set-missing-var-ids @:# \
+--extract range ${name}_range \
+--remove /home/ebazzicalupo/RDA/samplestoremove.txt --geno 0.001 \
+--make-bed --pca --out ${name}_persample
+
+# HAPLOBLOCK
+cd ~/GenWin_results/Window_analysis
+name=superoutlier
+VCF=/home/ebazzicalupo/BayPass/VCF/ll_wholegenome_LyCa_ref.sorted.filter7.vcf
+
+plink_1.9 --vcf ${VCF} --double-id --allow-extra-chr --set-missing-var-ids @:# \
+--extract range /home/ebazzicalupo/GenWin_results/${name}_range \
+--remove /home/ebazzicalupo/RDA/samplestoremove.txt --geno 0.001 \
+--make-bed --pca --out ${name}_persample
+
+```
 I will then copy the eigenval and eigenvec files on my laptop to process them with R:
 ```
 scp ebazzicalupo@genomics-b.ebd.csic.es:/home/ebazzicalupo/GenWin_results/Window_analysis/*eigen* \
+Documents/Selection_Eurasian_Lynx/Window_analysis/
+
+# for the neutral PCA
+scp ebazzicalupo@genomics-b.ebd.csic.es:/home/ebazzicalupo/GenWin_results/Window_analysis/12k10k_neutral.eigen* \
+Documents/Selection_Eurasian_Lynx/Window_analysis/
+
+# for combined diff
+scp ebazzicalupo@genomics-b.ebd.csic.es:/home/ebazzicalupo/GenWin_results/Window_analysis/combined_differentiation_persample.eigen* \
+Documents/Selection_Eurasian_Lynx/Window_analysis/
+
+# for superoutlier
+scp ebazzicalupo@genomics-b.ebd.csic.es:/home/ebazzicalupo/GenWin_results/Window_analysis/superoutlier_persample.eigen* \
 Documents/Selection_Eurasian_Lynx/Window_analysis/
 ```
 In R the first thing to do will be to load the necessary libraries and colors
@@ -276,9 +325,12 @@ cols <- c("Caucasus"="#B8860b",
 Then I can proceed with analyzing the results in a loop
 ```{R}
 variables <- c("g1", "g2", "g3", "g4", "g5", "g6", "g7","small_windowset")
-
+# for the other give var value and run rest of loop without loop
+var <- "12k10k_neutral"
+var <- "combined_differentiation_persample"
+var <- "superoutlier_persample"
 for (i in 1:length(variables)){
-i=7
+
  var <- variables[i]
 
  # import eigen vec and val
@@ -328,4 +380,34 @@ i=7
         width=25,height=25,units="cm")
 }
 ggplotly()
+```
+Investigate PC1 of superoutlier to find Haplotypes of samples in haploblock
+```{R}
+pctable <- data.frame(PC1=pca$PC1, sample=pca$ind, pop=loc)
+#pctable %>% filter(pctable$pop == "Yakutia")
+
+# Draw a pie chart for AF of each population
+populations <- as.vector(unique(pctable$pop))
+aftable <- data.frame()
+for (i in 1:length(populations)){
+  popu <- populations[i]
+  poppctable <- pctable %>% filter(pctable$pop == popu)
+  AF0=((2*length(which(poppctable$PC1<(-0.05))))+length(which(poppctable$PC1>-0.05&poppctable$PC1<0.05)))/(2*length(poppctable$PC1))
+  AF1=((2*length(which(poppctable$PC1>0.05)))+length(which(poppctable$PC1>-0.05&poppctable$PC1<0.05)))/(2*length(poppctable$PC1))
+  popafs <- data.frame(population=popu, af0=AF0, af1=AF1)
+  aftable <- rbind(aftable, popafs)
+
+  pietable <- data.frame(af=c(AF0, AF1), allele=c("0","1"))
+  
+  AFpie <- ggplot(pietable, aes(x="", y=af, fill=allele)) +
+  geom_bar(stat="identity", width=1, color="black") +
+  coord_polar("y", start=0) +
+  scale_fill_manual(values = c("lightgrey", "black")) +
+  theme_void()+ theme(legend.position = "none")
+  
+  ggsave(paste0("~/Documents/Selection_Eurasian_Lynx/PCA_outliers/",
+                       popu, "_superoutlier_AFpie.png"), AFpie)
+  
+}
+write.table(aftable, "PCA_outliers/superoutlier_popafs.tsv", sep = "\t", row.names = F)
 ```
